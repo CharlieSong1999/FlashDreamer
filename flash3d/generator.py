@@ -14,7 +14,7 @@ from PIL import Image
 import json
 from networks.gaussian_predictor import GaussianPredictor
 from util.export_param import postprocess, save_ply
-
+from torchvision.transforms.functional import to_pil_image
 import numpy as np
 from renderer import Flash3DRenderer
 from torchvision.utils import save_image
@@ -46,6 +46,47 @@ class Flash3DReconstructor:
         self.renderer = Flash3DRenderer()
 
 
+    def get_SE3_rotation_y(self, theta_degrees):
+        """
+        Return SE(3) matrix, rotation around y axix and no translation
+        """
+
+        theta = np.deg2rad(theta_degrees)
+        R_y = np.array([
+            [ np.cos(theta), 0, np.sin(theta)],
+            [ 0,             1, 0            ],
+            [-np.sin(theta), 0, np.cos(theta)]
+        ])
+
+        T = np.eye(4)
+        T[:3, :3] = R_y
+
+        return torch.tensor(T).cuda().float()
+
+    def apply_mask_from_images(self, image_a, image_b):
+        """
+        Get mask from image_a and use it to filter image_b
+        """
+        image_a = image_a.convert('RGBA')
+        image_b = image_b.convert('RGBA')
+
+        if image_a.size != image_b.size:
+            image_b = image_b.resize(image_a.size)
+
+        image_a_np = np.array(image_a)
+        image_b_np = np.array(image_b)
+
+        rgb_channels = image_a_np[:, :, :3]
+        rgb_nonzero = np.any(rgb_channels != 0, axis=2)
+        mask = rgb_nonzero
+
+        mask_3d = np.stack([mask]*4, axis=-1)
+        output_np = np.zeros_like(image_b_np)
+        output_np[mask_3d] = image_b_np[mask_3d]
+        output_tensor = torch.from_numpy(output_np).permute(2, 0, 1).float() / 255.0
+
+        return output_tensor, mask
+
     def check_input_image(self, input_image):
         if input_image is None:
             raise FileNotFoundError("Input image not found!")
@@ -55,7 +96,7 @@ class Flash3DReconstructor:
         h, w = image.size
         size = 32
         if dynamic_size:
-            while max(h, w) // size > 10: # initially 20
+            while max(h, w) // size > 20: # initially 20
                 size *= 2
             crop_image = TTF.center_crop(image, (w // size * size, h // size * size))
             resize_image = TTF.resize(crop_image, (w // size * 32, h // size * 32), interpolation=TT.InterpolationMode.BICUBIC)
@@ -84,9 +125,15 @@ class Flash3DReconstructor:
             ("color_aug", 0, 0): image,
         }
 
-        outputs = self.model(inputs) # inference results of current frame
-        outputs = postprocess(outputs,
-                            num_gauss=num_gauss,
+        result = self.model(inputs) # inference results of current frame
+        outputs = postprocess(result,
+                            num_gauss=2,
+                            h=self.cfg.dataset.height,
+                            w=self.cfg.dataset.width,
+                            pad=self.cfg.dataset.pad_border_aug)
+        
+        outputs_1_gauss = postprocess(result,
+                            num_gauss=1,
                             h=self.cfg.dataset.height,
                             w=self.cfg.dataset.width,
                             pad=self.cfg.dataset.pad_border_aug)
@@ -98,14 +145,21 @@ class Flash3DReconstructor:
         #                     [0.0, 0.0, 0.0, 1.0]
         #                 ], dtype=torch.float32)
 
-        # 偏移后的视角
-        w2c = torch.tensor([[ 0.99569565,  0.00377457, -0.09260627, -0.51011687],
-                            [-0.02098674,  0.98240015, -0.18560577,  0.0884598 ],
-                            [ 0.09027583,  0.18675037,  0.97825077, -0.20966021],
-                            [ 0.        ,  0.        ,  0.        ,  1.        ]]).cuda().float()
-        
+        w2c = self.get_SE3_rotation_y(20)
+    
         im, radius = self.renderer.render(outputs, w2c)
         self.renderer.save_image(im, root_directory+"render_test.png")
+
+        # render 1 gauss per pixel
+        im_1_gauss, radius = self.renderer.render(outputs_1_gauss, w2c)
+        self.renderer.save_image(im_1_gauss, root_directory+"render_test_1.png")
+
+        image_a_pil = to_pil_image(im_1_gauss)
+        image_b_pil = to_pil_image(im)
+
+        masked_img, mask = self.apply_mask_from_images(image_a_pil, image_b_pil)
+        self.renderer.save_image(masked_img, root_directory+"masked_rendered.png")
+
         self.map_param = outputs
         outputs['rotations'] = torch.tensor(outputs['rotations']).clone().detach()
 

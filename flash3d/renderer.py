@@ -47,9 +47,9 @@ class Flash3DRenderer:
         ])
 
         # 预处理后输入flash3d的图片大小，也是渲染时图片的大小
-        w = 300
-        h = 170
-        fx, fy, cx, cy = k[0][0] / 4, k[1][1] / 4, k[0][2] / 4, k[1][2] / 4
+        w = 640
+        h = 384
+        fx, fy, cx, cy = k[0][0] / 2, k[1][1] / 2, k[0][2] / 2, k[1][2] / 2
 
         # 设置观测视角的外参
         w2c = torch.tensor(w2c).cuda().float()

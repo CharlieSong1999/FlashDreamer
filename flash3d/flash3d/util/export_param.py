@@ -44,8 +44,8 @@ def postprocess(outputs, num_gauss=2, h=256, w=384, pad=32):
     
     # 恢复场景尺度
     K_input = torch.tensor([
-                    [600.0/4, 0, 599.5/4],
-                    [0, 600.0/4, 339.5/4],
+                    [600.0/2, 0, 599.5/2],
+                    [0, 600.0/2, 339.5/2],
                     [0, 0, 1]
                 ])
     K_output = outputs[('K_src', 0, 0)].squeeze(0)
