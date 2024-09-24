@@ -153,8 +153,17 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
         The base model to use for inpainting. Options are 'stable-diffusion' and 'kandinsky-2-2'.
     """
 
-    # Get the VLM model and tokenizer
-    vlm_model, vlm_tokenizer = get_VLM()
+    # Get diffusion prompt
+    if not prompt_diffusion:
+        # Get the VLM model and tokenizer
+        vlm_model, vlm_tokenizer = get_VLM()
+        print(f'Getting diffusion prompt using question: {prompt_question}...')
+        prompt = get_prompt(image, vlm_model, vlm_tokenizer, question=prompt_question)
+
+        del vlm_model, vlm_tokenizer
+        torch.cuda.empty_cache()
+    else:
+        prompt = prompt_diffusion
 
     # Get the inpainting pipeline
     pipeline = get_Inpainting_Pipeline(base_model)
@@ -162,15 +171,9 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
     # Load the image and mask
     image, mask = get_image_and_mask(image_path, mask_path)
 
-    # Get the prompt
-    if not prompt_diffusion:
-        prompt = get_prompt(image, vlm_model, vlm_tokenizer, question=prompt_question)
-
     # Inpaint the image
-    if prompt_diffusion is not None:
-        inpainted_image = inpaint_image(image, mask, prompt_diffusion, pipeline)
-    else:
-        inpainted_image = inpaint_image(image, mask, prompt, pipeline)
+    print(f'Inpainting image using prompt: {prompt}')
+    inpainted_image = inpaint_image(image, mask, prompt, pipeline)
 
     # Display the inpainted image
     grid_img = make_image_grid([image, mask, inpainted_image], rows=1, cols=3)
