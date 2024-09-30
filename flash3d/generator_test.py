@@ -21,6 +21,7 @@ import numpy as np
 from renderer import Flash3DRenderer
 from torchvision.utils import save_image
 from vlm_diffusion_pipeline import main as generate_diffusion_img
+from torchvision import transforms
 
 class Flash3DReconstructor:
     def __init__(self):
@@ -273,12 +274,35 @@ class Flash3DReconstructor:
             masked_img, mask = self.apply_mask_from_images(image_a_pil, image_b_pil)
 
             self.mask = mask # mask for the diffusion and adding new 3dg
-            self.renderer.save_image(masked_img, current_directory+f"/imgs/{self.index}_masked_rendered.png")
+            mask_render_path = current_directory+f"/imgs/{self.index}_masked_rendered.png"
+            self.renderer.save_image(masked_img, mask_render_path)
 
-            # TODO complete image after diffusion model
-            # diffusion_img = generate_diffusion_img()
-            diffusion_img = self.imgs[0]
-            self.diffusion_img = self.to_tensor(diffusion_img).to(self.device).unsqueeze(0)
+            # 获取diffusion的mask
+            image_a_pil = to_pil_image(im_1_gauss_original)
+            image_b_pil = to_pil_image(im_original)
+            masked_img_diffusion, mask_diffusion = self.apply_mask_from_images(image_a_pil, image_b_pil)
+            mask_diffusion = torch.tensor(mask_diffusion.astype(np.float32), dtype=torch.float)
+
+            # input of diffusion
+            mask_render_path_diffusion = current_directory+f"/imgs/{self.index}_masked_rendered_original.png"
+            self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
+            mask_path_diffusion = current_directory+f"/imgs/{self.index}_mask_diffusion.png"
+            self.renderer.save_image(mask_diffusion, mask_path_diffusion)
+
+            # 生成图片
+            diffusion_img = generate_diffusion_img(image_path=mask_render_path_diffusion, mask_path=mask_path_diffusion,
+                                                   prompt_question='Briefly describe the image',
+                                                   prompt_diffusion=None,
+                                                   base_model='stable-diffusion') # 512*512
+        
+            transform = transforms.Compose([
+                        transforms.Resize((384, 640)),  # 先调整大小为 (height, width)
+                        transforms.CenterCrop((320, 576)),  # 再中心裁剪为 (height, width)
+                        transforms.Pad(padding=32, fill=(0, 0, 0))  # 最后添加 32 像素的填充，填充颜色为黑色
+                    ])
+            diffusion_img = transform(diffusion_img)
+
+            self.diffusion_img = self.to_tensor(diffusion_img).to(self.device).unsqueeze(0) # [1, 3, 384, 640]
 
         # 保存ply文件
         # if (self.index==1):
@@ -312,8 +336,8 @@ if __name__ == "__main__":
     reconstructor.w2c.append(w2c_1)
 
     # TODO 目前手动读取diffusion_img
-    diffusion_img = Image.open(os.path.join(current_directory, 'diffusion.png')).convert("RGB")
-    reconstructor.imgs.append(diffusion_img)
+    # diffusion_img = Image.open(os.path.join(current_directory, 'diffusion.png')).convert("RGB")
+    # reconstructor.imgs.append(diffusion_img)
 
     # 输入图片
     img_path = os.path.join(current_directory, 'frame000652.jpg')
