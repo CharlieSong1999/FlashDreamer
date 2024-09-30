@@ -4,8 +4,10 @@ from PIL import Image
 from diffusers.utils import load_image, make_image_grid
 import argparse
 from matplotlib import pyplot as plt
+from transformers import MllamaForConditionalGeneration, AutoProcessor
+import cv2
 
-def get_VLM():
+def get_VLM(vlm_model_name ='llama-3.2'):
     """
     https://huggingface.co/qresearch/llama-3.1-8B-vision-378
 
@@ -15,14 +17,25 @@ def get_VLM():
     model: VLM model
     tokenizer: VLM tokenizer
     """
+    if vlm_model_name == 'llama-3.1':
+        model = AutoModelForCausalLM.from_pretrained(
+            "qresearch/llama-3.1-8B-vision-378",
+            trust_remote_code=True,
+            torch_dtype=torch.float16,
+        ).to("cuda")
 
-    model = AutoModelForCausalLM.from_pretrained(
-        "qresearch/llama-3.1-8B-vision-378",
-        trust_remote_code=True,
-        torch_dtype=torch.float16,
-    ).to("cuda")
+        tokenizer = AutoTokenizer.from_pretrained("qresearch/llama-3.1-8B-vision-378", use_fast=True,)
+    elif vlm_model_name == 'llama-3.2':
+        model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
 
-    tokenizer = AutoTokenizer.from_pretrained("qresearch/llama-3.1-8B-vision-378", use_fast=True,)
+        model = MllamaForConditionalGeneration.from_pretrained(
+            model_id,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
+        tokenizer = AutoProcessor.from_pretrained(model_id)
+    else:
+        raise ValueError(f"Invalid vlm_model: {vlm_model_name}")
 
     return model, tokenizer
 
@@ -46,13 +59,25 @@ def get_Inpainting_Pipeline(base_model='stable-diffusion'):
             torch_dtype=torch.float16,
         )
         pipeline.to("cuda")
-    
+    elif base_model == 'stable-diffusion-v2':
+        from diffusers import StableDiffusionInpaintPipeline
+        pipeline = StableDiffusionInpaintPipeline.from_pretrained(
+            "stabilityai/stable-diffusion-2-inpainting",
+            torch_dtype=torch.float16,
+        )
+        pipeline.to("cuda")
     elif base_model == 'kandinsky-2-2':
         # https://huggingface.co/docs/diffusers/main/en/using-diffusers/inpaint
         from diffusers import AutoPipelineForInpainting
 
         pipeline = AutoPipelineForInpainting.from_pretrained(
             "kandinsky-community/kandinsky-2-2-decoder-inpaint", torch_dtype=torch.float16
+        )
+        pipeline.to("cuda")
+    elif base_model == 'stable-diffusion-xl':
+        from diffusers import AutoPipelineForInpainting
+        pipeline = AutoPipelineForInpainting.from_pretrained(
+            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16"
         )
         pipeline.to("cuda")
     else:
@@ -112,13 +137,12 @@ def inpaint_image(init_image, mask_image, prompt, pipeline, seed=114514):
 
     return image
 
-def get_prompt(image, vlm_model, vlm_tokenizer,
+def get_prompt(image, vlm_model_name, vlm_model, vlm_tokenizer,
                question: str = "Briefly describe the image",
-               max_tokens: int = 128,
+               max_tokens: int = 256,
                temperature: float = 0.3):
     """
-    https://huggingface.co/qresearch/llama-3.1-8B-vision-378
-
+    
     Get the prompt for inpainting from the VLM model.
 
     Args:
@@ -131,14 +155,40 @@ def get_prompt(image, vlm_model, vlm_tokenizer,
     prompt: str
         Prompt for inpainting
     """
+    if vlm_model_name == 'llama-3.1':
+        # https://huggingface.co/qresearch/llama-3.1-8B-vision-378
+        prompt = vlm_model.answer_question(
+            image, question, vlm_tokenizer, max_new_tokens=max_tokens, do_sample=True, temperature=temperature
+        )
 
-    prompt = vlm_model.answer_question(
-        image, question, vlm_tokenizer, max_new_tokens=max_tokens, do_sample=True, temperature=temperature
-    )
+        return prompt
+    elif vlm_model_name == 'llama-3.2':
+        messages = [
+            {"role": "user", "content": [
+                {"type": "image"},
+                {"type": "text", "text": question},
+            ]}
+        ]
+        input_text = vlm_tokenizer.apply_chat_template(messages, add_generation_prompt=True)
+        inputs = vlm_tokenizer(image, input_text, return_tensors="pt").to(vlm_model.device)
 
-    return prompt
+        output = vlm_model.generate(**inputs, max_new_tokens=max_tokens)
 
-def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', prompt_diffusion=None):
+        prompt = vlm_tokenizer.decode(output[0])
+
+        print(f'Ori prompt: {prompt}')
+
+        if '<|end_header_id|>' in prompt:
+            prompt = prompt.split('<|end_header_id|>')[-1].strip()
+        
+        if '<|eot_id|>' in prompt:
+            prompt = prompt.split('<|eot_id|>')[0].strip()
+
+        print(f'New prompt: {prompt}')
+    
+        return prompt
+
+def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', vlm_model_name='llama-3.2', prompt_diffusion=None):
     """
     Main function to inpaint an image using the VLM model.
 
@@ -153,12 +203,15 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
         The base model to use for inpainting. Options are 'stable-diffusion' and 'kandinsky-2-2'.
     """
 
+    # Load the image and mask
+    image, mask = get_image_and_mask(image_path, mask_path)
+
     # Get diffusion prompt
     if not prompt_diffusion:
         # Get the VLM model and tokenizer
-        vlm_model, vlm_tokenizer = get_VLM()
+        vlm_model, vlm_tokenizer = get_VLM(vlm_model_name)
         print(f'Getting diffusion prompt using question: {prompt_question}...')
-        prompt = get_prompt(image, vlm_model, vlm_tokenizer, question=prompt_question)
+        prompt = get_prompt(image, vlm_model_name, vlm_model, vlm_tokenizer, question=prompt_question)
 
         del vlm_model, vlm_tokenizer
         torch.cuda.empty_cache()
@@ -167,9 +220,6 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
 
     # Get the inpainting pipeline
     pipeline = get_Inpainting_Pipeline(base_model)
-
-    # Load the image and mask
-    image, mask = get_image_and_mask(image_path, mask_path)
 
     # Inpaint the image
     print(f'Inpainting image using prompt: {prompt}')
@@ -181,14 +231,17 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
     plt.axis('off')
     plt.show()
 
+    inpainted_image.save('./inpainting_result.png')
+
 if __name__ == "__main__":
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument("--image_path", type=str, default='./imgs/room-512.jpg', help="Path to the image file")
     argparser.add_argument("--mask_path", type=str, default='./imgs/room-mask-512.webp', help="Path to the mask file")
-    argparser.add_argument("--prompt_question", type=str, default='Briefly describe the image', help="Prompt question for inpainting")
+    argparser.add_argument("--prompt_question", type=str, default='Briefly describe the image in 30 words, ignore the blurred part', help="Prompt question for inpainting")
     argparser.add_argument("--prompt_diffusion", type=str, default=None, help="Direct prompt for diffusion")
     argparser.add_argument("--base_model", type=str, default='stable-diffusion', help="Base model for inpainting")
+    argparser.add_argument("--vlm_model", type=str, default='llama-3.2', help="VLM model to use")
     args = argparser.parse_args()
 
-    main(args.image_path, args.mask_path, args.prompt_question, args.base_model, args.prompt_diffusion)
+    main(args.image_path, args.mask_path, args.prompt_question, args.base_model, args.vlm_model, args.prompt_diffusion)

@@ -144,6 +144,12 @@ class Flash3DReconstructor:
         #                     [0.0, 0.0, 1.0, 0.0], 
         #                     [0.0, 0.0, 0.0, 1.0]
         #                 ], dtype=torch.float32)
+        # w2c = torch.tensor([
+        #                     [1.0, 0.0, 0.0, 0.0],  
+        #                     [0.0, 1.0, 0.0, 0.0], 
+        #                     [0.0, 0.0, 1.0, 0.1], 
+        #                     [0.0, 0.0, 0.0, 1.0]
+        #                 ], dtype=torch.float32)
 
         w2c = self.get_SE3_rotation_y(20)
     
