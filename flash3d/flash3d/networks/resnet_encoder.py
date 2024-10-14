@@ -3,7 +3,7 @@
 # This software is licensed under the terms of the Monodepth2 licence
 # which allows for non-commercial use only, the full terms of which are made
 # available in the LICENSE file.
-
+from __future__ import annotations
 import numpy as np
 
 import torch

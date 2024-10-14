@@ -2,7 +2,7 @@
 Author: Luigi Piccinelli
 Licensed under the CC-BY NC 4.0 license (http://creativecommons.org/licenses/by-nc/4.0/)
 """
-
+from __future__ import annotations
 from functools import partial
 
 import torch

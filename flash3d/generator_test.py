@@ -281,7 +281,9 @@ class Flash3DReconstructor:
             image_a_pil = to_pil_image(im_1_gauss_original)
             image_b_pil = to_pil_image(im_original)
             masked_img_diffusion, mask_diffusion = self.apply_mask_from_images(image_a_pil, image_b_pil)
-            mask_diffusion = torch.tensor(mask_diffusion.astype(np.float32), dtype=torch.float)
+            mask_diffusion = ~torch.tensor(mask_diffusion)
+            mask_diffusion = mask_diffusion.to(torch.float32)
+    
 
             # input of diffusion
             mask_render_path_diffusion = current_directory+f"/imgs/{self.index}_masked_rendered_original.png"
@@ -289,11 +291,15 @@ class Flash3DReconstructor:
             mask_path_diffusion = current_directory+f"/imgs/{self.index}_mask_diffusion.png"
             self.renderer.save_image(mask_diffusion, mask_path_diffusion)
 
+            self.model.to('cpu')
+
             # 生成图片
             diffusion_img = generate_diffusion_img(image_path=mask_render_path_diffusion, mask_path=mask_path_diffusion,
-                                                   prompt_question='Briefly describe the image',
+                                                   prompt_question='What is the scene of the image? Answer in a sentence.',
                                                    prompt_diffusion=None,
-                                                   base_model='stable-diffusion') # 512*512
+                                                   base_model='stable-diffusion-v2', index=self.index) # 512*512
+            
+            self.model.to(self.device)
         
             transform = transforms.Compose([
                         transforms.Resize((384, 640)),  # 先调整大小为 (height, width)
@@ -329,11 +335,28 @@ if __name__ == "__main__":
                         [0.0, 0.0, 1.0, 0.0], 
                         [0.0, 0.0, 0.0, 1.0]
                     ], dtype=torch.float32)
+    
+    w2c_back = torch.tensor([
+                        [1.0, 0.0, 0.0, 0.0],  
+                        [0.0, 1.0, 0.0, 0.0], 
+                        [0.0, 0.0, 1.0, 0.2], 
+                        [0.0, 0.0, 0.0, 1.0]
+                    ], dtype=torch.float32)
 
     # 添加视角，w2c_0为初始视角
     reconstructor.w2c.append(w2c_0)
-    w2c_1 = reconstructor.get_SE3_rotation_y(20)
-    reconstructor.w2c.append(w2c_1)
+
+    for angle in range(10, 41, 10):
+        # reconstructor.w2c.append(w2c_back)
+        w2c = reconstructor.get_SE3_rotation_y(angle)
+        reconstructor.w2c.append(w2c)
+
+    # w2c_1 = reconstructor.get_SE3_rotation_y(20)
+    # w2c_2 = reconstructor.get_SE3_rotation_y(40)
+    # # w2c_3 = reconstructor.get_SE3_rotation_y(40)
+    # reconstructor.w2c.append(w2c_1)
+    # reconstructor.w2c.append(w2c_2)
+    # reconstructor.w2c.append(w2c_3)
 
     # TODO 目前手动读取diffusion_img
     # diffusion_img = Image.open(os.path.join(current_directory, 'diffusion.png')).convert("RGB")
@@ -344,6 +367,7 @@ if __name__ == "__main__":
     output_path = os.path.join(current_directory, 'demo')
 
     for i in range(len(reconstructor.w2c)):
+        print('Processing image', i)
         reconstructor.run(img_path=img_path, 
                         output_dir=output_path)
 
