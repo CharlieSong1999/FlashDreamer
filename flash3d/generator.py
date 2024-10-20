@@ -27,10 +27,13 @@ class Flash3DReconstructor:
             self.device = "cpu"
 
         # 加载模型
-        self.model_cfg_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
-                                              filename="config_re10k_v1.yaml")
-        self.model_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
-                                          filename="model_re10k_v2.pth")
+        # self.model_cfg_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
+        #                                       filename="config_re10k_v1.yaml")
+        # self.model_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
+        #                                   filename="model_re10k_v2.pth")
+
+        self.model_cfg_path = "./flash3d-hub/config_re10k_v1.yaml"
+        self.model_path = "./flash3d-hub/model_re10k_v2.pth"
 
         self.cfg = OmegaConf.load(self.model_cfg_path)
         self.model = GaussianPredictor(self.cfg)

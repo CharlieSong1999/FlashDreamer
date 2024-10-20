@@ -186,7 +186,7 @@ def get_image_embedding(image, model_name='blip-2'):
 
     return image_embeds
 
-def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', prompt_diffusion=None, index=0, strength=0.6, 
+def main(image_path, mask_path, prompt_question, base_model='stable-diffusion-xl', prompt_diffusion=None, index=0, strength=0.6, 
          negative_prompt = None):
     """
     Main function to inpaint an image using the VLM model.
@@ -239,12 +239,12 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion', 
     grid_img = make_image_grid([image, mask, inpainted_image], rows=1, cols=3)
     plt.imshow(grid_img)
     plt.axis('off')
-    plt.savefig(f'./imgs/inpainting_grid_{index}.jpg')
+    # plt.savefig(f'./ly_test_imgs/inpainting_grid_{index}_{prompt}.jpg')
 
     del pipeline
     torch.cuda.empty_cache()
 
-    inpainted_image.save(f'./imgs/inpainting_{index}.jpg')
+    # inpainted_image.save(f'./ly_test_imgs/inpainting_{index}_{prompt}.jpg')
 
     return inpainted_image
 

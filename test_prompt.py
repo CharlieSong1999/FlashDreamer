@@ -14,20 +14,16 @@ from torchvision import transforms
 from vlm_diffusion_pipeline import main as generate_diffusion_img
 from matplotlib import pyplot as plt
 from diffusers.utils import load_image, make_image_grid
-import pdb
+import argparse
 
 
 # Define the decorator to add the function to the instance of the reconstructor
 def decorator_add_function_to_instance(instance, func):
     setattr(instance, func.__name__, types.MethodType(func, instance))
 
-flash3dreconstructor = Flash3DReconstructor()
-setattr(flash3dreconstructor, 'add_function_to_instance', types.MethodType(decorator_add_function_to_instance, flash3dreconstructor))
-
-
 
 # Preprocess the input image, get the flash3d output, then the postprocess
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_postprocess(self, index, image):
     if (index == 0):
         image = self.to_tensor(image).to(self.device).unsqueeze(0)
@@ -35,7 +31,7 @@ def flash3d_postprocess(self, index, image):
     else:
         image = self.diffusion_img
 
-    save_image(image, current_directory+f"/imgs/{index}_inputpre.png")
+    save_image(image, args.current_directory+f"/imgs/{index}_inputpre.png")
     self.gt_img.append(image)
 
     inputs = {
@@ -62,7 +58,7 @@ def flash3d_postprocess(self, index, image):
 
 # 处理初始输入图片，添加到地图中
 # Directly copy from Jiaqi's code
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_initial_map(self, outputs, outputs_1_gauss):
     self.map_param_2 = outputs
     self.map_param_2['rotations'] = torch.tensor(self.map_param_2['rotations']).to('cuda')
@@ -74,7 +70,7 @@ def flash3d_initial_map(self, outputs, outputs_1_gauss):
 
 # 处理生成的图片，按照mask添加新元素，变换到世界坐标下，添加到地图中
 # Directly copy from Jiaqi's code
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_additional_map(self, index, outputs, outputs_1_gauss):
     w2c = self.w2c[index]
 
@@ -114,25 +110,25 @@ def flash3d_additional_map(self, index, outputs, outputs_1_gauss):
 
     self.map_param_2 = self.optimize_map(self.map_param_2)
 
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_prepare_img_mask_for_diffusion(self, index):
     # 新视角下渲染
     w2c = self.w2c[index+1]
     im_original, radius = self.renderer.render(self.map_param_2, w2c)
     im = im_original[:, 32:352, 32:608]
-    self.renderer.save_image(im, current_directory+f"/imgs/{index}_render_2gauss.png")
+    self.renderer.save_image(im, args.current_directory+f"/imgs/{index}_render_2gauss.png")
 
     # render 1 gauss per pixel
     im_1_gauss_original, radius = self.renderer.render(self.map_param_1, w2c)
     im_1_gauss = im_1_gauss_original[:, 32:352, 32:608]
-    self.renderer.save_image(im_1_gauss, current_directory+f"/imgs/{index}_render_1gauss.png")
+    self.renderer.save_image(im_1_gauss, args.current_directory+f"/imgs/{index}_render_1gauss.png")
 
     image_a_pil = to_pil_image(im_1_gauss)
     image_b_pil = to_pil_image(im)
     masked_img, mask = self.apply_mask_from_images(image_a_pil, image_b_pil)
 
     self.mask = mask # mask for the diffusion and adding new 3dg
-    mask_render_path = current_directory+f"/imgs/{index}_masked_rendered.png"
+    mask_render_path = args.current_directory+f"/imgs/{index}_masked_rendered.png"
     self.renderer.save_image(masked_img, mask_render_path)
 
     # 获取diffusion的mask
@@ -144,14 +140,14 @@ def flash3d_prepare_img_mask_for_diffusion(self, index):
 
 
     # input of diffusion
-    mask_render_path_diffusion = current_directory+f"/imgs/{index}_masked_rendered_original.png"
+    mask_render_path_diffusion = args.current_directory+f"/imgs/{index}_masked_rendered_original.png"
     self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
-    mask_path_diffusion = current_directory+f"/imgs/{index}_mask_diffusion.png"
+    mask_path_diffusion = args.current_directory+f"/imgs/{index}_mask_diffusion.png"
     self.renderer.save_image(mask_diffusion, mask_path_diffusion)
 
     return mask_render_path_diffusion, mask_path_diffusion
 
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_post_process_diffusion_img(self, diffusion_img):
     transform = transforms.Compose([
                 transforms.Resize((384, 640)),  # 先调整大小为 (height, width)
@@ -162,7 +158,7 @@ def flash3d_post_process_diffusion_img(self, diffusion_img):
 
     self.diffusion_img = self.to_tensor(diffusion_img).to(self.device).unsqueeze(0) # [1, 3, 384, 640]
 
-@flash3dreconstructor.add_function_to_instance
+# @flash3dreconstructor.add_function_to_instance
 def flash3d_final_process(self, ):
     reconstructor = self
     # 优化1 layer的map
@@ -174,73 +170,72 @@ def flash3d_final_process(self, ):
 
         im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
         im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{15-i}_render.png')
+        reconstructor.renderer.save_image(im, args.current_directory+f'/rotate_demo/{15-i}_render.png')
 
     for i in range(0, 30, 1):
         temp_w2c = reconstructor.get_SE3_rotation_y(i)
 
         im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
         im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{i+16}_render.png')
+        reconstructor.renderer.save_image(im, args.current_directory+f'/rotate_demo/{i+16}_render.png')
+
+def main(args):
+    flash3dreconstructor = Flash3DReconstructor()
+    setattr(flash3dreconstructor, 'add_function_to_instance', types.MethodType(decorator_add_function_to_instance, flash3dreconstructor))
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_postprocess)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_initial_map)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_final_process)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_post_process_diffusion_img)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_additional_map)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_prepare_img_mask_for_diffusion)
+
+    # 初始视角(input image的视角)
+    w2c_0 = torch.tensor([
+                        [1.0, 0.0, 0.0, 0.0],  
+                        [0.0, 1.0, 0.0, 0.0], 
+                        [0.0, 0.0, 1.0, 0.0], 
+                        [0.0, 0.0, 0.0, 1.0]
+                    ], dtype=torch.float32)
+
+    # w2c back denotes the transformation matrix for the camera to backward while maintaining the same view angle
+    # 0.2 is roungly the distance (not entirely sure) between the camera and the object, adjust this value to adjust the distance between the camera and the object
+    # If want to combine it with rotation, just multiply the rotation matrix with this matrix
+    backward_distance = args.backward_distance
+    w2c_back = torch.tensor([
+                        [1.0, 0.0, 0.0, 0.0],  
+                        [0.0, 1.0, 0.0, 0.0], 
+                        [0.0, 0.0, 1.0, backward_distance], 
+                        [0.0, 0.0, 0.0, 1.0]
+                    ], dtype=torch.float32)
+
+    # 添加视角，w2c_0为初始视角
+    flash3dreconstructor.w2c.append(w2c_0)
+
+    # Prepare the input image, which refers to the very first image of the whole pipeline
+    img = Image.open(args.intial_img_path).convert("RGB")
+    if img is not None:
+        print("Image loaded successfully.")
+    else:
+        print("Failed to load the image.")
+
+    # Add the transformation matrix you want to apply to the camera
+    # rotate_angle = args.rotate_angle_list
+    rotate_angle = [int(x) for x in args.rotate_angle_list.split(',')]
+    assert isinstance(rotate_angle, list)
+    for angle in rotate_angle:
+        assert isinstance(angle, int)
+        rotate_matrix = flash3dreconstructor.get_SE3_rotation_y(angle)
+        flash3dreconstructor.w2c.append(rotate_matrix) # This line to add the rotation matrix to the camera
+        # rotate_matrix = flash3dreconstructor.get_SE3_rotation_y(rotate_angle)
+        # flash3dreconstructor.w2c.append(rotate_matrix) # This line to add the rotation matrix to the camera
 
 
+    flash3dreconstructor.check_input_image(img)
+    img = flash3dreconstructor.preprocess(img, dynamic_size=True, padding=True)
+    current_loop_index = args.loop_num
 
-    # Set the path to the input image and the output directory, the input image is the very first image of the whole pipeline
-intial_img_path = './flash3d/frame000652.jpg'
-output_path = './flash3d-output'
-current_directory = './flash3d-cache'
+    flash3dreconstructor.model.to('cuda')
 
-# 初始视角(input image的视角)
-w2c_0 = torch.tensor([
-                    [1.0, 0.0, 0.0, 0.0],  
-                    [0.0, 1.0, 0.0, 0.0], 
-                    [0.0, 0.0, 1.0, 0.0], 
-                    [0.0, 0.0, 0.0, 1.0]
-                ], dtype=torch.float32)
-
-# w2c back denotes the transformation matrix for the camera to backward while maintaining the same view angle
-# 0.2 is roungly the distance (not entirely sure) between the camera and the object, adjust this value to adjust the distance between the camera and the object
-# If want to combine it with rotation, just multiply the rotation matrix with this matrix
-backward_distance = 0.2
-w2c_back = torch.tensor([
-                    [1.0, 0.0, 0.0, 0.0],  
-                    [0.0, 1.0, 0.0, 0.0], 
-                    [0.0, 0.0, 1.0, backward_distance], 
-                    [0.0, 0.0, 0.0, 1.0]
-                ], dtype=torch.float32)
-
-# 添加视角，w2c_0为初始视角
-flash3dreconstructor.w2c.append(w2c_0)
-
-# Prepare the input image, which refers to the very first image of the whole pipeline
-img = Image.open(intial_img_path).convert("RGB")
-if img is not None:
-    print("Image loaded successfully.")
-else:
-    print("Failed to load the image.")
-
-# Add the transformation matrix you want to apply to the camera
-rotate_angle = [5, 10, 15, 20, 30]
-for angle in rotate_angle:
-    rotate_matrix = flash3dreconstructor.get_SE3_rotation_y(angle)
-    flash3dreconstructor.w2c.append(rotate_matrix) # This line to add the rotation matrix to the camera
-    # rotate_matrix = flash3dreconstructor.get_SE3_rotation_y(rotate_angle)
-    # flash3dreconstructor.w2c.append(rotate_matrix) # This line to add the rotation matrix to the camera
-
-
-flash3dreconstructor.check_input_image(img)
-img = flash3dreconstructor.preprocess(img, dynamic_size=True, padding=True)
-
-    # Define the current loop index, the loop includes the entire pipeline, from the input image to the final output, it normally depends on the number of transformations
-    # you add to the w2c list of the reconstructor
-    # Note the input image of the first loop (current_loop_index = 0) is the image you prepared above
-    # The output image of the first loop is the input image of the second loop, and so on
-current_loop_index = 5
-
-
-flash3dreconstructor.model.to('cuda')
-
-for i in range(current_loop_index):
     outputs, outputs_1_gauss = flash3dreconstructor.flash3d_postprocess(current_loop_index, img)
     if current_loop_index == 0:
         flash3dreconstructor.flash3d_initial_map(outputs, outputs_1_gauss)
@@ -259,24 +254,36 @@ for i in range(current_loop_index):
         grid_img = make_image_grid([rendered_img, mask_img], rows=1, cols=2)
         plt.imshow(grid_img)
         plt.axis('off')
-        plt.savefig(f'./imgs/before_inpainting_{current_loop_index}.jpg')
-
-    Prompt_diffusion = 'A indoor scene, a room, a window, two sofas.'
+        plt.savefig(f'./{args.output_path}/before_inpainting_{args.rotate_angle_list}_{current_loop_index}.jpg')
 
     if current_loop_index + 1 < len(flash3dreconstructor.w2c):
         diffusion_img = generate_diffusion_img(image_path=mask_render_path_diffusion, mask_path=mask_path_diffusion,
-                                                        prompt_question=None,
-                                                        prompt_diffusion=Prompt_diffusion,
-                                                        base_model='stable-diffusion-xl', index=current_loop_index, strength=1.0,
-                                                        negative_prompt="bad architecture, inconsistent, poor details, blurry") # 512*512
-
+                                                        prompt_question=args.prompt_question,
+                                                        prompt_diffusion=args.prompt_diffusion,
+                                                        base_model=args.base_model, index=current_loop_index, strength=1.0,
+                                                        negative_prompt=args.negative_prompt) # 512*512
+    diffusion_img.save(f'./{args.output_path}/inpainting_{args.rotate_angle_list}_{current_loop_index}.jpg')
     # Display the diffusion image
     if current_loop_index + 1 < len(flash3dreconstructor.w2c):
-        plt.imshow(diffusion_img)
-        plt.axis('off')
-        plt.savefig(f'./imgs/diffusion_{current_loop_index}.jpg')
+        plt.savefig(f'./{args.output_path}/diffusion_{args.rotate_angle_list}_{current_loop_index}.jpg')
 
     # Postprocess the diffusion image
     flash3dreconstructor.flash3d_post_process_diffusion_img(diffusion_img)
-
     flash3dreconstructor.flash3d_final_process()
+
+
+if __name__ == "__main__":
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument("--intial_img_path", type=str, default='./flash3d/frame000652.jpg', help="Original path to the image file")
+    argparser.add_argument("--output_path", type=str, default='./ly_test_imgs', help="Path to save the final result")
+    argparser.add_argument("--current_directory", type=str, default='./flash3d-cache', help="Path to save temp files")
+    argparser.add_argument("--prompt_question", type=str, default=None, help="Prompt question for inpainting")
+    argparser.add_argument("--prompt_diffusion", type=str, default='A indoor scene, a room, a window, two sofas, slightly expand the scene', help="Direct prompt for diffusion")
+    argparser.add_argument("--base_model", type=str, default='stable-diffusion-xl', help="Base model for inpainting")
+    argparser.add_argument("--loop_num", type=int, default=0, help="the number of loop")
+    argparser.add_argument("--negative_prompt", type=str, default='bad architecture, inconsistent, poor details, blurry')
+    argparser.add_argument("--backward_distance", type=float, default=0.2, help='roungly the distance (not entirely sure) between the camera and the object')
+    argparser.add_argument("--rotate_angle_list", type=str, default="5", help='(e.g. 5, 10, 15)')
+    args = argparser.parse_args()
+
+    main(args)

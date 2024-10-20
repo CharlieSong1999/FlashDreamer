@@ -15,6 +15,11 @@ source $CONDA_ENV /scratch/kf09/lz1278/lyenv/flash3d
 module load cuda/12.2.2
 
 # python3 ./flash3d/generator.py
-# python3 pre-process-img.py --output_height 512 --output_width 512
-python3 ./vlm-diffusion-pipeline.py --image_path 'flash3drender_test_resized.png' --mask_path 'flash3drender_test_mask_resized.png' --base_model 'stable-diffusion-xl' | tee ./test_ppl_logs.txt
-# python3 test-llama.py 2>&1 | tee ./test_logs.txt
+# python3 ./pre-process-img.py --output_height 512 --output_width 512
+python3 ./vlm_diffusion_pipeline.py --image_path './resize_output/flash3drender_test_resized.png' \
+        --mask_path  './resize_output/flash3drender_test_mask_resized.png' \
+        --base_model 'stable-diffusion-xl' \
+        --prompt_diffusion 'A indoor scene, a room, a window, two sofas.' \
+        | tee ./test_ppl_logs.txt
+
+
