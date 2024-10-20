@@ -1,0 +1,23 @@
+Traceback (most recent call last):
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/generator.py", line 19, in <module>
+    from renderer import Flash3DRenderer
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/renderer.py", line 6, in <module>
+    from diff_gaussian_rasterization import GaussianRasterizer as Renderer
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/diff_gaussian_rasterization-0.0.0-py3.11-linux-x86_64.egg/diff_gaussian_rasterization/__init__.py", line 15, in <module>
+    from . import _C
+ImportError: /scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/diff_gaussian_rasterization-0.0.0-py3.11-linux-x86_64.egg/diff_gaussian_rasterization/_C.cpython-311-x86_64-linux-gnu.so: undefined symbol: _ZN3c104impl3cow23materialize_cow_storageERNS_11StorageImplE
+
+======================================================================================
+                  Resource Usage on 2024-10-17 01:15:47:
+   Job Id:             126945966.gadi-pbs
+   Project:            kf09
+   Exit Status:        0
+   Service Units:      0.06
+   NCPUs Requested:    12                     NCPUs Used: 12              
+                                           CPU Time Used: 00:00:03        
+   Memory Requested:   16.0GB                Memory Used: 254.86MB        
+   NGPUs Requested:    1                 GPU Utilisation: 0%              
+                                         GPU Memory Used: 0B              
+   Walltime requested: 00:19:00            Walltime Used: 00:00:06        
+   JobFS requested:    100.0MB                JobFS used: 0B              
+======================================================================================

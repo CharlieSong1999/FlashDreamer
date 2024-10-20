@@ -1,0 +1,55 @@
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /einsafutdinov/flash3d/resolve/main/config_re10k_v1.yaml (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x147b8fe17d90>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: a3d0e669-0b1b-42f4-86e9-1c0e7bbbcd8e)'))
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /einsafutdinov/flash3d/resolve/main/model_re10k_v2.pth (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x147b8fa55a50>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: dc655b73-c728-4e53-a894-050e2c76ab5d)'))
+Triton is not available, some optimizations will not be enabled.
+This is just a warning: triton is not available
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /lpiccinelli/unidepth-v1-vitl14/resolve/main/config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x147b48fc50d0>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: 242abcdf-8040-4b7a-9673-f63427445078)'))
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /lpiccinelli/unidepth-v1-vitl14/resolve/main/model.safetensors (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x147b00835890>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: cc5cfa64-1227-4e48-acc0-abd6f0f52899)'))
+/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/renderer.py:55: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  w2c = torch.tensor(w2c).cuda().float()
+Instantiate: dinov2_vitl14
+Traceback (most recent call last):
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/generator.py", line 187, in <module>
+    reconstructor.run(img_path= img_path, 
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/generator.py", line 179, in run
+    self.reconstruct_and_export(img, output_dir)
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/generator.py", line 156, in reconstruct_and_export
+    im, radius = self.renderer.render(outputs, w2c)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/renderer.py", line 88, in render
+    im, radius, _, = Renderer(raster_settings=cam)(**rendervar)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1511, in _wrapped_call_impl
+    return self._call_impl(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/torch/nn/modules/module.py", line 1520, in _call_impl
+    return forward_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/diff_gaussian_rasterization-0.0.0-py3.11-linux-x86_64.egg/diff_gaussian_rasterization/__init__.py", line 186, in forward
+    return rasterize_gaussians(
+           ^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/diff_gaussian_rasterization-0.0.0-py3.11-linux-x86_64.egg/diff_gaussian_rasterization/__init__.py", line 28, in rasterize_gaussians
+    return _RasterizeGaussians.apply(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/torch/autograd/function.py", line 553, in apply
+    return super().apply(*args, **kwargs)  # type: ignore[misc]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/kf09/lz1278/lyenv/flash3d/lib/python3.11/site-packages/diff_gaussian_rasterization-0.0.0-py3.11-linux-x86_64.egg/diff_gaussian_rasterization/__init__.py", line 79, in forward
+    num_rendered, color, radii, geomBuffer, binningBuffer, imgBuffer, depth = _C.rasterize_gaussians(*args)
+                                                                              ^^
+NameError: name '_C' is not defined
+
+======================================================================================
+                  Resource Usage on 2024-10-17 01:12:09:
+   Job Id:             126945850.gadi-pbs
+   Project:            kf09
+   Exit Status:        0
+   Service Units:      0.38
+   NCPUs Requested:    12                     NCPUs Used: 12              
+                                           CPU Time Used: 00:00:19        
+   Memory Requested:   16.0GB                Memory Used: 6.14GB          
+   NGPUs Requested:    1                 GPU Utilisation: 0%              
+                                         GPU Memory Used: 0B              
+   Walltime requested: 00:19:00            Walltime Used: 00:00:38        
+   JobFS requested:    100.0MB                JobFS used: 0B              
+======================================================================================

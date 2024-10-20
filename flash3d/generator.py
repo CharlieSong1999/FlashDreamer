@@ -1,10 +1,8 @@
 import sys
 import os
-current_directory = os.path.dirname(os.path.abspath(__file__))
-parent_directory = os.path.abspath(os.path.join(current_directory, os.pardir))
-work_directory = os.path.join(current_directory, 'flash3d')
+root_directory = os.path.dirname(os.path.abspath(__file__))
+work_directory = os.path.join(root_directory, 'flash3d')
 sys.path.append(work_directory)
-sys.path.append(parent_directory)
 
 from omegaconf import OmegaConf
 import spaces
@@ -20,7 +18,6 @@ from torchvision.transforms.functional import to_pil_image
 import numpy as np
 from renderer import Flash3DRenderer
 from torchvision.utils import save_image
-from vlm_diffusion_pipeline import main as generate_diffusion_img
 
 class Flash3DReconstructor:
     def __init__(self):
@@ -48,12 +45,6 @@ class Flash3DReconstructor:
         # 加载渲染器
         self.renderer = Flash3DRenderer()
 
-        self.imgs = [] # 暂时手动存放diffusion图片
-        self.diffusion_img = None
-        self.w2c = [] # pre-defined w2c
-        self.index = 0
-        self.mask = None
-        self.gt_img = [] # 输入图片+生成的图片
 
     def get_SE3_rotation_y(self, theta_degrees):
         """
@@ -97,7 +88,6 @@ class Flash3DReconstructor:
         return output_tensor, mask
 
     def check_input_image(self, input_image):
-        """检查图片是否存在"""
         if input_image is None:
             raise FileNotFoundError("Input image not found!")
 
@@ -118,7 +108,7 @@ class Flash3DReconstructor:
                 interpolation=TT.InterpolationMode.BICUBIC
             )
         if padding:
-            resize_image.save(current_directory+f"/imgs/{self.index}_resized.png")
+            resize_image.save(root_directory+"resized.png")
             input_image = self.pad_border_fn(resize_image)
             self.cfg.dataset.pad_border_aug = 32
         else:
@@ -126,168 +116,61 @@ class Flash3DReconstructor:
             self.cfg.dataset.pad_border_aug = 0
         self.model.set_backproject()
         return input_image
-    
-    def apply_transformation(self, point_cloud, T):
-        """点云坐标变换"""
-        ones = torch.ones((point_cloud.shape[0], 1), device=point_cloud.device)
-        homogeneous_points = torch.cat((point_cloud, ones), dim=1)
-
-        transformed_points = torch.mm(homogeneous_points, T.t())
-        return transformed_points[:, :3]
-    
-    def optimize_map(self, params):
-        params_group = []
-
-        for key in params:
-            if isinstance(params[key], torch.Tensor):
-                params[key] = params[key].detach().to(self.device)
-                params[key].requires_grad_(True)
-
-        params_group = [{'params': [params[key]]} for key in params]
-        optimizer = torch.optim.Adam(params_group, lr=1e-3)
-        num_iters = 100
-        for i in range(num_iters):
-            optimizer.zero_grad()
-            loss = 0.0
-            num_gt = len(self.gt_img)
-            for k in range(num_gt):
-                # 渲染
-                rendered, radius = self.renderer.render(params, self.w2c[k])
-                rendered = rendered[:, 32:352, 32:608]
-                
-                # 保存渲染结果
-                if i == 0:
-                    self.renderer.save_image(rendered, current_directory+f"/imgs/{self.index}_{k}_start_render.png")
-                if i == num_iters - 1:
-                    self.renderer.save_image(rendered, current_directory+f"/imgs/{self.index}_{k}_end_render.png")
-                
-                # 计算损失
-                gt = self.gt_img[k].squeeze(0)[:, 32:352, 32:608]
-                loss += torch.abs(rendered - gt).sum()
-            
-            # 反向传播
-            loss /= num_gt
-            loss.backward()
-            
-            # 更新参数
-            optimizer.step()
-            
-            print(f"Tracking Iteration {i + 1}, Loss: {loss.item():.4f}")
-        return params
 
     @spaces.GPU()
     def reconstruct_and_export(self, image, output_dir, num_gauss=2):
-        if (self.index == 0):
-            image = self.to_tensor(image).to(self.device).unsqueeze(0)
-
-        else:
-            image = self.diffusion_img
-
-        save_image(image, current_directory+f"/imgs/{self.index}_inputpre.png")
-        self.gt_img.append(image)
-
+        image = self.to_tensor(image).to(self.device).unsqueeze(0)
+        save_image(image, root_directory+"inputpre.png")
         inputs = {
             ("color_aug", 0, 0): image,
         }
 
-        # flash3d输出
-        result = self.model(inputs)
-
-        # 2层3dg
+        result = self.model(inputs) # inference results of current frame
         outputs = postprocess(result,
                             num_gauss=2,
                             h=self.cfg.dataset.height,
                             w=self.cfg.dataset.width,
                             pad=self.cfg.dataset.pad_border_aug)
-        # 1层3dg
+        
         outputs_1_gauss = postprocess(result,
                             num_gauss=1,
                             h=self.cfg.dataset.height,
                             w=self.cfg.dataset.width,
                             pad=self.cfg.dataset.pad_border_aug)
+        # 初始视角
+        # w2c = torch.tensor([
+        #                     [1.0, 0.0, 0.0, 0.0],  
+        #                     [0.0, 1.0, 0.0, 0.0], 
+        #                     [0.0, 0.0, 1.0, 0.0], 
+        #                     [0.0, 0.0, 0.0, 1.0]
+        #                 ], dtype=torch.float32)
+        # w2c = torch.tensor([
+        #                     [1.0, 0.0, 0.0, 0.0],  
+        #                     [0.0, 1.0, 0.0, 0.0], 
+        #                     [0.0, 0.0, 1.0, 0.1], 
+        #                     [0.0, 0.0, 0.0, 1.0]
+        #                 ], dtype=torch.float32)
 
-        # 处理初始输入图片，添加到地图中
-        if (self.index == 0):
-            self.map_param_2 = outputs
-            self.map_param_2['rotations'] = torch.tensor(self.map_param_2['rotations']).to('cuda')
+        w2c = self.get_SE3_rotation_y(20)
+    
+        im, radius = self.renderer.render(outputs, w2c)
+        self.renderer.save_image(im, root_directory+"render_test.png")
 
-            self.map_param_1 = outputs_1_gauss
-            self.map_param_1['rotations'] = torch.tensor(self.map_param_1['rotations']).to('cuda')
+        # render 1 gauss per pixel
+        im_1_gauss, radius = self.renderer.render(outputs_1_gauss, w2c)
+        self.renderer.save_image(im_1_gauss, root_directory+"render_test_1.png")
 
-            self.map_param_2 = self.optimize_map(self.map_param_2)
+        image_a_pil = to_pil_image(im_1_gauss)
+        image_b_pil = to_pil_image(im)
 
-        # 处理生成的图片，按照mask添加新元素，变换到世界坐标下，添加到地图中
-        if (self.index != 0):
-            w2c = self.w2c[self.index]
+        masked_img, mask = self.apply_mask_from_images(image_a_pil, image_b_pil)
+        self.renderer.save_image(masked_img, root_directory+"masked_rendered.png")
 
-            self.cur_param_2 = outputs
-            self.cur_param_2['rotations'] = torch.tensor(self.cur_param_2['rotations']).to('cuda')
+        self.map_param = outputs
+        outputs['rotations'] = torch.tensor(outputs['rotations']).clone().detach()
 
-            self.cur_param_1 = outputs_1_gauss
-            self.cur_param_1['rotations'] = torch.tensor(self.cur_param_1['rotations']).to('cuda')
-
-            c2w = torch.inverse(w2c)
-            self.cur_param_1['means'] = self.apply_transformation(self.cur_param_1['means'], c2w.to('cuda'))
-            self.cur_param_2['means'] = self.apply_transformation(self.cur_param_2['means'], c2w.to('cuda'))
-
-            # 保留新增的部分
-            mask = ~torch.tensor(self.mask).view(-1)
-            mask_2 = mask.repeat(2)
-            # update global map
-            for key in self.map_param_1.keys():
-
-                original_tensor = self.map_param_1[key].to('cuda')
-                updated_tensor = torch.tensor(self.cur_param_1[key]).to('cuda')
-                updated_tensor = updated_tensor[mask]
-
-                if isinstance(updated_tensor, np.ndarray):
-                    updated_tensor = torch.tensor(updated_tensor).to('cuda')
-
-                self.map_param_1[key] = torch.cat((original_tensor, updated_tensor), dim=0)
-
-                original_tensor = self.map_param_2[key].to('cuda')
-                updated_tensor = torch.tensor(self.cur_param_2[key]).to('cuda')
-                updated_tensor = updated_tensor[mask_2]
-
-                if isinstance(updated_tensor, np.ndarray):
-                    updated_tensor = torch.tensor(updated_tensor).to('cuda')
-
-                self.map_param_2[key] = torch.cat((original_tensor, updated_tensor), dim=0)
-
-            self.map_param_2 = self.optimize_map(self.map_param_2)
-
-        if ((self.index+1)<len(self.w2c)):
-            # 新视角下渲染
-            w2c = self.w2c[self.index+1]
-            im_original, radius = self.renderer.render(self.map_param_2, w2c)
-            im = im_original[:, 32:352, 32:608]
-            self.renderer.save_image(im, current_directory+f"/imgs/{self.index}_render_2gauss.png")
-
-            # render 1 gauss per pixel
-            im_1_gauss_original, radius = self.renderer.render(self.map_param_1, w2c)
-            im_1_gauss = im_1_gauss_original[:, 32:352, 32:608]
-            self.renderer.save_image(im_1_gauss, current_directory+f"/imgs/{self.index}_render_1gauss.png")
-
-            image_a_pil = to_pil_image(im_1_gauss)
-            image_b_pil = to_pil_image(im)
-            masked_img, mask = self.apply_mask_from_images(image_a_pil, image_b_pil)
-
-            self.mask = mask # mask for the diffusion and adding new 3dg
-            self.renderer.save_image(masked_img, current_directory+f"/imgs/{self.index}_masked_rendered.png")
-
-            # TODO complete image after diffusion model
-            # diffusion_img = generate_diffusion_img()
-            diffusion_img = self.imgs[0]
-            self.diffusion_img = self.to_tensor(diffusion_img).to(self.device).unsqueeze(0)
-
-        # 保存ply文件
-        # if (self.index==1):
-        #     save_ply(self.map_param_2, 
-        #             path=os.path.join(output_dir, 'demo.ply'))
-        #     save_ply(self.map_param_1, 
-        #             path=os.path.join(output_dir, 'demo_1.ply'))
-
-        self.index += 1
+        save_ply(self.map_param, 
+                path=os.path.join(output_dir, 'demo.ply'))
 
     def run(self, img_path, output_dir, dynamic_size=True, padding=True):
         img = Image.open(img_path).convert("RGB")
@@ -298,62 +181,8 @@ class Flash3DReconstructor:
 if __name__ == "__main__":
     reconstructor = Flash3DReconstructor()
 
-    # 初始视角(input image的视角)
-    w2c_0 = torch.tensor([
-                        [1.0, 0.0, 0.0, 0.0],  
-                        [0.0, 1.0, 0.0, 0.0], 
-                        [0.0, 0.0, 1.0, 0.0], 
-                        [0.0, 0.0, 0.0, 1.0]
-                    ], dtype=torch.float32)
+    img_path = os.path.join(root_directory, 'frame000652.jpg')
+    output_path = os.path.join(root_directory, 'demo')
 
-    # 添加视角，w2c_0为初始视角
-    reconstructor.w2c.append(w2c_0)
-    w2c_1 = reconstructor.get_SE3_rotation_y(20)
-    reconstructor.w2c.append(w2c_1)
-
-    # TODO 目前手动读取diffusion_img
-    diffusion_img = Image.open(os.path.join(current_directory, 'diffusion.png')).convert("RGB")
-    reconstructor.imgs.append(diffusion_img)
-
-    # 输入图片
-    img_path = os.path.join(current_directory, 'frame000652.jpg')
-    output_path = os.path.join(current_directory, 'demo')
-
-    for i in range(len(reconstructor.w2c)):
-        reconstructor.run(img_path=img_path, 
-                        output_dir=output_path)
-
-    # 优化1 layer的map
-    reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
-
-    # 不同视角渲染地图并保存
-    for i in range(15, -1, -1):
-        temp_w2c = reconstructor.get_SE3_rotation_y(i)
-
-        im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
-        im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{15-i}_render.png')
-
-    for i in range(0, 30, 1):
-        temp_w2c = reconstructor.get_SE3_rotation_y(i)
-
-        im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
-        im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{i+16}_render.png')
-        
-    # 优化2 layers的map
-    # reconstructor.map_param_2 = reconstructor.optimize_map(reconstructor.map_param_2)
-
-    # for i in range(15, -1, -1):
-    #     temp_w2c = reconstructor.get_SE3_rotation_y(i)
-
-    #     im, radius = reconstructor.renderer.render(reconstructor.map_param_2, temp_w2c)
-    #     im = im[:, 32:352, 32:608]
-    #     reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{15-i}_render.png')
-
-    # for i in range(0, 30, 1):
-    #     temp_w2c = reconstructor.get_SE3_rotation_y(i)
-
-    #     im, radius = reconstructor.renderer.render(reconstructor.map_param_2, temp_w2c)
-    #     im = im[:, 32:352, 32:608]
-    #     reconstructor.renderer.save_image(im, current_directory+f'/rotate_demo/{i+16}_render.png')
+    reconstructor.run(img_path= img_path, 
+                      output_dir=output_path)

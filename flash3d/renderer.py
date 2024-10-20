@@ -49,12 +49,11 @@ class Flash3DRenderer:
         # 预处理后输入flash3d的图片大小，也是渲染时图片的大小
         w = 640
         h = 384
-        # w = 576
-        # h = 320
         fx, fy, cx, cy = k[0][0] / 2, k[1][1] / 2, k[0][2] / 2, k[1][2] / 2
 
         # 设置观测视角的外参
-        w2c = torch.tensor(w2c).cuda().float()
+        w2c = w2c.clone().detach().cuda().float()
+        # w2c = torch.tensor(w2c).cuda().float()
         cam_center = torch.inverse(w2c)[:3, 3]
         w2c = w2c.unsqueeze(0).transpose(1, 2)
         opengl_proj = torch.tensor([

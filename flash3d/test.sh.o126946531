@@ -1,0 +1,27 @@
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /einsafutdinov/flash3d/resolve/main/config_re10k_v1.yaml (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x14fc9c618390>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: 3f7c287f-59f4-4f71-bead-14eeb7c2cc92)'))
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /einsafutdinov/flash3d/resolve/main/model_re10k_v2.pth (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x14fc9c619d50>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: 79d204f1-efc6-4a13-baf6-7ad4b83038d9)'))
+Triton is not available, some optimizations will not be enabled.
+This is just a warning: triton is not available
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /lpiccinelli/unidepth-v1-vitl14/resolve/main/config.json (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x14fc548ec090>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: 48881a71-307c-46a5-a62b-6348b221ce67)'))
+Couldn't access the Hub to check for update but local file already exists. Defaulting to existing file. (error: (MaxRetryError("HTTPSConnectionPool(host='huggingface.co', port=443): Max retries exceeded with url: /lpiccinelli/unidepth-v1-vitl14/resolve/main/model.safetensors (Caused by NewConnectionError('<urllib3.connection.HTTPSConnection object at 0x14fc0d311850>: Failed to establish a new connection: [Errno 101] Network is unreachable'))"), '(Request ID: 0e424bf5-aaf0-4e84-b3fd-789f4f8a34a4)'))
+/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d/renderer.py:55: UserWarning: To copy construct from a tensor, it is recommended to use sourceTensor.clone().detach() or sourceTensor.clone().detach().requires_grad_(True), rather than torch.tensor(sourceTensor).
+  w2c = torch.tensor(w2c).cuda().float()
+Instantiate: dinov2_vitl14
+Image saved as /scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3drender_test.png
+Image saved as /scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3drender_test_1.png
+Image saved as /scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3dmasked_rendered.png
+
+======================================================================================
+                  Resource Usage on 2024-10-17 01:43:26:
+   Job Id:             126946531.gadi-pbs
+   Project:            kf09
+   Exit Status:        0
+   Service Units:      0.33
+   NCPUs Requested:    12                     NCPUs Used: 12              
+                                           CPU Time Used: 00:00:21        
+   Memory Requested:   16.0GB                Memory Used: 6.35GB          
+   NGPUs Requested:    1                 GPU Utilisation: 0%              
+                                         GPU Memory Used: 3.47GB          
+   Walltime requested: 00:19:00            Walltime Used: 00:00:33        
+   JobFS requested:    100.0MB                JobFS used: 0B              
+======================================================================================

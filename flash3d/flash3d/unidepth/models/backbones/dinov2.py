@@ -1,4 +1,7 @@
+<<<<<<< HEAD
 from __future__ import annotations
+=======
+>>>>>>> 2e788b3 (commit)
 from functools import partial
 import math
 import logging
