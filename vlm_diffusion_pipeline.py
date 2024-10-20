@@ -1,3 +1,4 @@
+
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from PIL import Image
@@ -18,12 +19,12 @@ def get_VLM():
     """
 
     model = AutoModelForCausalLM.from_pretrained(
-        "qresearch/llama-3.1-8B-vision-378",
+        "./llama-3.1-8B-vision-378",
         trust_remote_code=True,
         torch_dtype=torch.float16,
     ).to("cuda")
 
-    tokenizer = AutoTokenizer.from_pretrained("qresearch/llama-3.1-8B-vision-378", use_fast=True,)
+    tokenizer = AutoTokenizer.from_pretrained("./llama-3.1-8B-vision-378", use_fast=True,)
     # from transformers import MllamaForConditionalGeneration, AutoProcessor
     # model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
 
@@ -36,7 +37,7 @@ def get_VLM():
 
     return model, tokenizer
 
-def get_Inpainting_Pipeline(base_model='stable-diffusion'):
+def get_Inpainting_Pipeline(base_model='stable-diffusion-xl'):
     """
     Get the inpainting pipeline from the Hugging Face model hub.
 
@@ -74,7 +75,7 @@ def get_Inpainting_Pipeline(base_model='stable-diffusion'):
     elif base_model == 'stable-diffusion-xl':
         from diffusers import AutoPipelineForInpainting
         pipeline = AutoPipelineForInpainting.from_pretrained(
-            "diffusers/stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16"
+            "./stable-diffusion-xl-1.0-inpainting-0.1", torch_dtype=torch.float16, variant="fp16"
         )
         pipeline.to("cuda")
     else:
@@ -161,33 +162,6 @@ def get_prompt(image, vlm_model, vlm_tokenizer,
     prompt = vlm_model.answer_question(
         image, question, vlm_tokenizer, max_new_tokens=max_tokens, do_sample=True, temperature=temperature
     )
-
-    # return prompt
-    # https://huggingface.co/meta-llama/Llama-3.2-11B-Vision
-    # messages = [
-    #     {"role": "user", "content": [
-    #         {"type": "image"},
-    #         {"type": "text", "text": question},
-    #     ]}
-    # ]
-    # input_text = vlm_tokenizer.apply_chat_template(messages, add_generation_prompt=True)
-    # inputs = vlm_tokenizer(image, input_text, return_tensors="pt").to(vlm_model.device)
-
-    # output = vlm_model.generate(**inputs, max_new_tokens=max_tokens)
-
-    # prompt = vlm_tokenizer.decode(output[0])
-
-    # # Remove some tags from the prompt
-
-    # print(f'Ori prompt: {prompt}')
-
-    # if '<|end_header_id|>' in prompt:
-    #     prompt = prompt.split('<|end_header_id|>')[-1].strip()
-    
-    # if '<|eot_id|>' in prompt:
-    #     prompt = prompt.split('<|eot_id|>')[0].strip()
-
-    # print(f'New prompt: {prompt}')
 
     return prompt
 
@@ -281,7 +255,7 @@ if __name__ == "__main__":
     argparser.add_argument("--mask_path", type=str, default='./imgs/room-mask-512.webp', help="Path to the mask file")
     argparser.add_argument("--prompt_question", type=str, default='Briefly describe the image', help="Prompt question for inpainting")
     argparser.add_argument("--prompt_diffusion", type=str, default=None, help="Direct prompt for diffusion")
-    argparser.add_argument("--base_model", type=str, default='stable-diffusion', help="Base model for inpainting")
+    argparser.add_argument("--base_model", type=str, default='stable-diffusion-xl', help="Base model for inpainting")
     args = argparser.parse_args()
 
     main(args.image_path, args.mask_path, args.prompt_question, args.base_model, args.prompt_diffusion)
