@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-from __future__ import annotations
-=======
->>>>>>> 2e788b3 (commit)
 from collections import OrderedDict
 from functools import partial
 from typing import Callable, Optional, Tuple, Union, Sequence

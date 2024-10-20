@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-from __future__ import annotations
-=======
->>>>>>> 2e788b3 (commit)
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

@@ -1,7 +1,4 @@
-<<<<<<< HEAD
-from __future__ import annotations
-=======
->>>>>>> 2e788b3 (commit)
+
 from pathlib import Path
 import logging
 
