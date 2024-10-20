@@ -25,3 +25,12 @@ TODO(issues):
 - 添加stable-diffusion-xl 和 stable-diffusion-v2，需要指定 --base_model 字段
 - pre-process-img.py 用于将flash3d渲染出来的图片预处理到diffusion接受的格式：512x512 (1024x1024 for stable-diffusion-xl)。他会根据flash3dmasked这个文件，将有像素值的部分覆盖为0，无像素值的部分覆盖为 255。mask和flash3drender_test这两个图片都会被resize。
 - flash3d_mask_resize_diffuse.bat 一个windows批处理文件，自动进行整个pipeline （但是在我的机子上，其实最后一行总是找不到文件，推测为windows的路径问题）作为参考。
+
+
+## 20241020 update
+
+- developed by liyun
+- 添加test_prompt.py，便于将相关变量作为字段。
+- 加入shell file， 便于服务器运行代码
+
+TODO：1. 多次for循环的代码未开发
