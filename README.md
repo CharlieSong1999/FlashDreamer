@@ -34,3 +34,13 @@ TODO(issues):
 - 加入shell file， 便于服务器运行代码
 
 TODO：1. 多次for循环的代码未开发
+
+## 20241021 update
+
+- by changlin
+- 可以for-loop了。需要指定 rotate_angle_list 或 backward_distance_list 其中任意字段，但不能两个字段同时有值。(如果是负数列表，需要空格，比如 " -10,-20,-30")
+- backward_distance_list 字段指定缩小的程度，比如 0.5, 1.0, 1.5。
+- prompt_question 和 prompt_diffusion 均默认为 None， 需要指定值，不可均为None或均不为None。
+- vlm_diffusion_pipeline.py 输入增加 original_input_img_path 用于读取初始图片，若使用vlm，则使用初始图片获取prompt。
+- 增加optimize_num_iters 字段，该字段设置 flash3d 后处理时optimization进行的iteration数量。目前可以忽略。
+- 注意: generator_test.py 40行处附近做了修改，注释了 self.model_cfg_path 等语句，这是为了适配本地机器运行，可根据需要修改。
