@@ -31,13 +31,13 @@ class Flash3DReconstructor:
             self.device = "cpu"
 
         # 加载模型
-        # self.model_cfg_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
-        #                                       filename="config_re10k_v1.yaml")
-        # self.model_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
-        #                                   filename="model_re10k_v2.pth")
+        self.model_cfg_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
+                                              filename="config_re10k_v1.yaml")
+        self.model_path = hf_hub_download(repo_id="einsafutdinov/flash3d", 
+                                          filename="model_re10k_v2.pth")
 
-        self.model_cfg_path = "./flash3d-hub/config_re10k_v1.yaml"
-        self.model_path = "./flash3d-hub/model_re10k_v2.pth"
+        # self.model_cfg_path = "./flash3d-hub/config_re10k_v1.yaml"
+        # self.model_path = "./flash3d-hub/model_re10k_v2.pth"
 
         self.cfg = OmegaConf.load(self.model_cfg_path)
         self.model = GaussianPredictor(self.cfg)
@@ -58,6 +58,8 @@ class Flash3DReconstructor:
         self.index = 0
         self.mask = None
         self.gt_img = [] # 输入图片+生成的图片
+
+        self.optimize_num_iters = 100
 
     def get_SE3_rotation_y(self, theta_degrees):
         """
@@ -149,11 +151,13 @@ class Flash3DReconstructor:
 
         params_group = [{'params': [params[key]]} for key in params]
         optimizer = torch.optim.Adam(params_group, lr=1e-3)
-        num_iters = 100
+        num_iters = self.optimize_num_iters
         for i in range(num_iters):
             optimizer.zero_grad()
             loss = 0.0
             num_gt = len(self.gt_img)
+            # 为每个gt图片赋予不同的权重, 越靠近当前视角的权重越大
+            # weights = torch.tensor([0.1 ** (i) for i in range(num_gt)], dtype=torch.float32, device=self.device).__reversed__()
             for k in range(num_gt):
                 # 渲染
                 rendered, radius = self.renderer.render(params, self.w2c[k])
@@ -167,7 +171,8 @@ class Flash3DReconstructor:
                 
                 # 计算损失
                 gt = self.gt_img[k].squeeze(0)[:, 32:352, 32:608]
-                loss += torch.abs(rendered - gt).sum()
+                loss += torch.abs(rendered - gt).sum() # L1 loss + 权重
+                # loss += torch.abs(rendered - gt).sum() * weights[k] # L1 loss + 权重
             
             # 反向传播
             loss /= num_gt
