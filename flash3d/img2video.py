@@ -1,7 +1,7 @@
 import cv2
 import os
 
-current_directory = os.path.dirname(os.path.abspath(__file__))
+current_directory = '/scratch/kf09/lz1278/ANU-COMP8536-2024s2-main/flash3d-cache'
 # 指定图片文件夹路径和视频输出路径
 image_folder = current_directory+'/rotate_demo'  # 替换为你存储 PNG 图片的文件夹路径
 video_name = current_directory+'/rotate_demo/output_video.mp4'  # 输出视频的文件名

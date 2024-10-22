@@ -4,7 +4,7 @@
 #PBS -l ngpus=1
 #PBS -l ncpus=12
 #PBS -l mem=32768MB
-#PBS -l walltime=00:09:00
+#PBS -l walltime=00:19:00
 #PBS -l wd
 #PBS -l storage=scratch/kf09
 
@@ -13,4 +13,4 @@ export CONDA_ENV='/scratch/kf09/lz1278/lyenv/miniconda3/bin/activate'
 source $CONDA_ENV /scratch/kf09/lz1278/lyenv/flash3d
 
 module load cuda/12.2.2
-python3 test_prompt.py --rotate_angle_list "-10" 2>&1 | tee ./test_prompt.txt
+python3 test_prompt_new.py  2>&1 | tee ./test_prompt.txt

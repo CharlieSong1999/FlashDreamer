@@ -60,7 +60,7 @@ def get_Inpainting_Pipeline(base_model='stable-diffusion-xl'):
     elif base_model == 'stable-diffusion-v2':
         from diffusers import StableDiffusionInpaintPipeline
         pipeline = StableDiffusionInpaintPipeline.from_pretrained(
-            "stabilityai/stable-diffusion-2-inpainting",
+            "./stable-diffusion-2-inpainting",
             torch_dtype=torch.float16,
         )
         pipeline.to("cuda")
@@ -186,7 +186,7 @@ def get_image_embedding(image, model_name='blip-2'):
 
     return image_embeds
 
-def main(image_path, mask_path, prompt_question, base_model='stable-diffusion-xl', prompt_diffusion=None, index=0, strength=0.6, 
+def main(original_input_img_path, image_path, mask_path, prompt_question, prompt_diffusion, base_model='stable-diffusion-xl', index=0, strength=0.6, 
          negative_prompt = None):
     """
     Main function to inpaint an image using the VLM model.
@@ -202,7 +202,8 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion-xl
         The base model to use for inpainting. Options are 'stable-diffusion' and 'kandinsky-2-2'.
     """
 
-    
+    # load the original image
+    original_input_img = Image.open(original_input_img_path)
 
     # Load the image and mask
     image, mask = get_image_and_mask(image_path, mask_path)
@@ -217,7 +218,7 @@ def main(image_path, mask_path, prompt_question, base_model='stable-diffusion-xl
     if prompt_diffusion is None:
         # Get the VLM model and tokenizer
         vlm_model, vlm_tokenizer = get_VLM()
-        prompt = get_prompt(image, vlm_model, vlm_tokenizer, question=prompt_question)
+        prompt = get_prompt(original_input_img, vlm_model, vlm_tokenizer, question=prompt_question)
         del vlm_model, vlm_tokenizer
         torch.cuda.empty_cache()
     else:
