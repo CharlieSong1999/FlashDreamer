@@ -13,4 +13,9 @@ export CONDA_ENV='/scratch/kf09/lz1278/lyenv/miniconda3/bin/activate'
 source $CONDA_ENV /scratch/kf09/lz1278/lyenv/flash3d
 
 module load cuda/12.2.2
-python3 test_prompt_new.py  2>&1 | tee ./test_prompt.txt
+python3 test_prompt_new.py  --output_path './ly_test_imgs' \
+        --intial_img_path './selected/0.jpg'\
+        --prompt_question 'please describe the scene shortly.'\
+        --prompt_diffusion "None" \
+        --rotate_angle_list '-30, -20, -10, 0, 10, 20, 30'
+        2>&1 | tee ./test_prompt.txt
