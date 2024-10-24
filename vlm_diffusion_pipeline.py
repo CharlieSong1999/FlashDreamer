@@ -1,3 +1,4 @@
+import os.path
 
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -6,6 +7,7 @@ from diffusers.utils import load_image, make_image_grid
 import argparse
 from matplotlib import pyplot as plt
 from torchvision.transforms.functional import resize, pil_to_tensor
+import json
 
 def get_VLM():
     """
@@ -216,13 +218,22 @@ def main(original_input_img_path, image_path, mask_path, prompt_question, base_m
 
     # Get the prompt
     if prompt_diffusion is None:
-        # Get the VLM model and tokenizer
-        vlm_model, vlm_tokenizer = get_VLM()
-        prompt = get_prompt(original_input_img, vlm_model, vlm_tokenizer, question=prompt_question)
-        del vlm_model, vlm_tokenizer
-        torch.cuda.empty_cache()
+        try: # Load from predefined prompt
+            json_file_path = os.path.dirname(original_input_img_path) + '/image_prompt_mapping.json'
+            with open(json_file_path, 'r') as f:
+                img_prompt_mapping = json.load(f)
+            prompt = img_prompt_mapping[os.path.basename(original_input_img_path)]
+            print('Load prompt for diffusion from the local.')
+        except Exception as e:
+            # Get the VLM model and tokenizer
+            vlm_model, vlm_tokenizer = get_VLM()
+            prompt = get_prompt(original_input_img, vlm_model, vlm_tokenizer, question=prompt_question)
+            del vlm_model, vlm_tokenizer
+            torch.cuda.empty_cache()
+            print('Generate prompt with VLM.')
     else:
         prompt = prompt_diffusion
+        print('Use the given prompt.')
 
 
     # Get the inpainting pipeline
