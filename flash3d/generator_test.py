@@ -325,14 +325,15 @@ class Flash3DReconstructor:
 
             self.diffusion_img = self.to_tensor(diffusion_img).to(self.device).unsqueeze(0)  # [1, 3, 384, 640]
 
-        # 保存ply文件
-        # if (self.index==1):
-        #     save_ply(self.map_param_2, 
-        #             path=os.path.join(output_dir, 'demo.ply'))
-        #     save_ply(self.map_param_1, 
-        #             path=os.path.join(output_dir, 'demo_1.ply'))
-
         self.index += 1
+
+    def save_ply(self,output_dir):
+        # 保存ply文件
+        print(f'Save the ply files to directory:{output_dir}')
+        save_ply(self.map_param_2,
+                path=os.path.join(output_dir, 'demo.ply'))
+        save_ply(self.map_param_1,
+                path=os.path.join(output_dir, 'demo_1.ply'))
 
     def run(self, img_path, output_dir, dynamic_size=True, padding=True):
         img = Image.open(img_path).convert("RGB")
@@ -343,7 +344,8 @@ class Flash3DReconstructor:
 
 
 if __name__ == "__main__":
-    img_path = os.path.join(current_directory, './input/selected/8a_gameroom2.jpg')
+    #img_path = os.path.join(current_directory, './input/subset/frame001747.jpg')
+    img_path = os.path.join(current_directory, './input/selected/119gameroombig.jpg')
     output_path = os.path.join(current_directory, 'demo')
 
     reconstructor = Flash3DReconstructor()
@@ -366,7 +368,7 @@ if __name__ == "__main__":
     # 添加视角，w2c_0为初始视角
     reconstructor.w2c.append(w2c_0)
 
-    for angle in range(10, 41, 10):
+    for angle in range(10, 41, 5):
         # reconstructor.w2c.append(w2c_back)
         w2c = reconstructor.get_SE3_rotation_y(angle)
         reconstructor.w2c.append(w2c)
@@ -380,7 +382,7 @@ if __name__ == "__main__":
     reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
 
     # 不同视角渲染地图并保存
-    for i in range(15, -1, -1):
+    for i in range(-15, 0, 1):
         temp_w2c = reconstructor.get_SE3_rotation_y(i)
 
         im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
@@ -398,3 +400,5 @@ if __name__ == "__main__":
     image_folder = current_directory + '/rotate_demo'
     video_name = current_directory + '/rotate_demo/output_video.mp4'
     create_video_from_images(image_folder,video_name)
+
+    reconstructor.save_ply(image_folder)

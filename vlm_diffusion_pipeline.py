@@ -270,8 +270,8 @@ def main(original_input_img_path, image_path, mask_path, prompt_question, base_m
     image, mask = get_image_and_mask(image_path, mask_path)
 
     # print('before resize', image.size, mask.size)
-    image = resize(image, [512, 512])
-    mask = resize(mask, [512, 512])
+    # image = resize(image, [512, 512])
+    # mask = resize(mask, [512, 512])
     # print('after resize', image.size, mask.size)
 
     # Get the prompt
@@ -296,21 +296,13 @@ def main(original_input_img_path, image_path, mask_path, prompt_question, base_m
 
     # Get the inpainting pipeline
     print('Prompt:', prompt)
-    prompt = "The image shows a room with a blue pool table in the center. The walls are painted a light gray color, and there is a large screen TV mounted on one wall. The room has a modern look, with a minimalist aesthetic. The floor is made of hardwood, and there are a few pieces of furniture, including a small table and a couple of chairs."
 
     pipeline = get_Inpainting_Pipeline(base_model)
     seed = 1024
     generator = torch.Generator("cuda").manual_seed(seed)
     inpainted_image = \
-        pipeline(prompt=prompt, image=image, mask_image=mask, generator=generator, strength=strength,
+        pipeline(prompt=prompt, image=image, mask_image=mask, generator=generator, strength=1,
                  negative_prompt=None, num_inference_steps=100).images[0]
-    inpainted_image.save('diffusion.jpg')
-
-    # Display the inpainted image
-    # grid_img = make_image_grid([image, mask, inpainted_image], rows=1, cols=3)
-    # plt.imshow(grid_img)
-    # plt.axis('off')
-    # plt.savefig(f'./ly_test_imgs/inpainting_grid_{index}_{prompt}.jpg')
 
     fig = visualize_inpainting_comparison(image, mask, inpainted_image)
     fig.savefig(f'./imgs/inpainting_{index}.jpg')
