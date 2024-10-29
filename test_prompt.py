@@ -8,13 +8,14 @@ import types
 from PIL import Image
 from torchvision.utils import save_image
 from torchvision.transforms.functional import to_pil_image
-from flash3d.flash3d.util.export_param import postprocess
+from flash3d.flash3d.util.export_param import postprocess, save_ply
 import numpy as np
 from torchvision import transforms
 from vlm_diffusion_pipeline import main as generate_diffusion_img
 from matplotlib import pyplot as plt
 from diffusers.utils import load_image, make_image_grid
 import argparse
+import os
 
 
 # Define the decorator to add the function to the instance of the reconstructor
@@ -179,6 +180,14 @@ def flash3d_final_process(self, list1=range(15,-1,-1), list2=range(0,30,1)):
         im = im[:, 32:352, 32:608]
         reconstructor.renderer.save_image(im, args.current_directory+f'/rotate_demo/{i+16}_render.png')
 
+# 保存ply文件
+def flash3d_save_ply(self, output_dir):
+
+    save_ply(self.map_param_2, 
+            path=os.path.join(output_dir, 'demo.ply'))
+    save_ply(self.map_param_1, 
+            path=os.path.join(output_dir, 'demo_1.ply'))
+
 def get_backward_matrix(backward_distance):
     w2c_back = torch.tensor([
                         [1.0, 0.0, 0.0, 0.0],  
@@ -197,6 +206,7 @@ def main(args):
     decorator_add_function_to_instance(flash3dreconstructor, flash3d_post_process_diffusion_img)
     decorator_add_function_to_instance(flash3dreconstructor, flash3d_additional_map)
     decorator_add_function_to_instance(flash3dreconstructor, flash3d_prepare_img_mask_for_diffusion)
+    decorator_add_function_to_instance(flash3dreconstructor, flash3d_save_ply) # 保存ply文件
 
     flash3dreconstructor.optimize_num_iters = args.optimize_num_iters
 
@@ -293,6 +303,7 @@ def main(args):
         flash3dreconstructor.flash3d_post_process_diffusion_img(diffusion_img)
     
     flash3dreconstructor.flash3d_final_process()
+    flash3dreconstructor.flash3d_save_ply(args.output_path) # 保存ply文件
 
 
 if __name__ == "__main__":
