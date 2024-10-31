@@ -21,21 +21,12 @@ def get_VLM():
     """
 
     model = AutoModelForCausalLM.from_pretrained(
-        "./llama-3.1-8B-vision-378",
+        "qresearch/llama-3.1-8B-vision-378",
         trust_remote_code=True,
         torch_dtype=torch.float16,
     ).to("cuda")
 
-    tokenizer = AutoTokenizer.from_pretrained("./llama-3.1-8B-vision-378", use_fast=True,)
-    # from transformers import MllamaForConditionalGeneration, AutoProcessor
-    # model_id = "meta-llama/Llama-3.2-11B-Vision-Instruct"
-
-    # model = MllamaForConditionalGeneration.from_pretrained(
-    #     model_id,
-    #     torch_dtype=torch.bfloat16,
-    #     device_map="auto",
-    # )
-    # tokenizer = AutoProcessor.from_pretrained(model_id)
+    tokenizer = AutoTokenizer.from_pretrained("qresearch/llama-3.1-8B-vision-378", use_fast=True,)
 
     return model, tokenizer
 
@@ -295,13 +286,14 @@ def main(original_input_img_path, image_path, mask_path, prompt_question, base_m
 
 
     # Get the inpainting pipeline
+    prompt = 'Please generate a real-life picture. According to the description:' + prompt
     print('Prompt:', prompt)
 
     pipeline = get_Inpainting_Pipeline(base_model)
-    seed = 1024
+    seed = 10241024
     generator = torch.Generator("cuda").manual_seed(seed)
     inpainted_image = \
-        pipeline(prompt=prompt, image=image, mask_image=mask, generator=generator, strength=1,
+        pipeline(prompt=prompt, image=image, mask_image=mask, strength=1,
                  negative_prompt=None, num_inference_steps=100).images[0]
 
     fig = visualize_inpainting_comparison(image, mask, inpainted_image)

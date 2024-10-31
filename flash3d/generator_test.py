@@ -27,7 +27,6 @@ from torchvision import transforms
 from img2video import create_video_from_images
 
 
-
 class Flash3DReconstructor:
     def __init__(self):
         if torch.cuda.is_available():
@@ -301,9 +300,9 @@ class Flash3DReconstructor:
 
             # input of diffusion
             mask_render_path_diffusion = current_directory + f"/imgs/{self.index}_masked_rendered_original.png"
-            self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
+            # self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
             mask_path_diffusion = current_directory + f"/imgs/{self.index}_mask_diffusion.png"
-            self.renderer.save_image(mask_diffusion, mask_path_diffusion)
+            # self.renderer.save_image(mask_diffusion, mask_path_diffusion)
 
             self.model.to('cpu')
 
@@ -327,15 +326,15 @@ class Flash3DReconstructor:
 
         self.index += 1
 
-    def save_ply(self,output_dir):
+    def save_ply(self, output_dir):
         # 保存ply文件
         print(f'Save the ply files to directory:{output_dir}')
         save_ply(self.map_param_2,
-                path=os.path.join(output_dir, 'demo.ply'))
+                 path=os.path.join(output_dir, 'demo.ply'))
         save_ply(self.map_param_1,
-                path=os.path.join(output_dir, 'demo_1.ply'))
+                 path=os.path.join(output_dir, 'demo_1.ply'))
 
-    def run(self, img_path, output_dir, dynamic_size=True, padding=True):
+    def run(self, img_path, output_dir=None, dynamic_size=True, padding=True):
         img = Image.open(img_path).convert("RGB")
         img = self.check_input_image(img)  # add resize to [1200, 680]
         img = self.preprocess(img, dynamic_size=dynamic_size, padding=padding)
@@ -344,8 +343,9 @@ class Flash3DReconstructor:
 
 
 if __name__ == "__main__":
-    #img_path = os.path.join(current_directory, './input/subset/frame001747.jpg')
-    img_path = os.path.join(current_directory, './input/selected/119gameroombig.jpg')
+    # img_path = os.path.join(current_directory, './input/subset/frame001747.jpg')
+    # img_path = os.path.join(current_directory, './input/selected/8a_gameroom2.jpg')
+    img_path = os.path.join(current_directory, './input/0_4.jpg')
     output_path = os.path.join(current_directory, 'demo')
 
     reconstructor = Flash3DReconstructor()
@@ -368,7 +368,8 @@ if __name__ == "__main__":
     # 添加视角，w2c_0为初始视角
     reconstructor.w2c.append(w2c_0)
 
-    for angle in range(10, 41, 5):
+    angles = [5,-5]
+    for angle in angles:
         # reconstructor.w2c.append(w2c_back)
         w2c = reconstructor.get_SE3_rotation_y(angle)
         reconstructor.w2c.append(w2c)
@@ -378,27 +379,71 @@ if __name__ == "__main__":
         reconstructor.run(img_path=img_path,
                           output_dir=output_path)
 
-    # 优化1 layer的map
+    # Optimize
     reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
 
-    # 不同视角渲染地图并保存
-    for i in range(-15, 0, 1):
-        temp_w2c = reconstructor.get_SE3_rotation_y(i)
+    # Render
+    # angles = list(range(-5 * 10, 5 * 10, 5))
+    for i, angle in enumerate(angles):
+        temp_w2c = reconstructor.get_SE3_rotation_y(angle)
 
         im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
         im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory + f'/rotate_demo/{15 - i}_render.png')
+        reconstructor.renderer.save_image(im, current_directory + f'/output/{angle}_render.png')
 
-    for i in range(0, 30, 1):
-        temp_w2c = reconstructor.get_SE3_rotation_y(i)
+    '''
+    # Process each image in the folder
+    input_folder = './input'
+    output_folder = './output'
+    #angles_list = [[-20, 20], [-10, 10], [-30, 30]]
+    angles = [-10,10]#[-20, 20],[-10,10],[-30,30]
 
-        im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
-        im = im[:, 32:352, 32:608]
-        reconstructor.renderer.save_image(im, current_directory + f'/rotate_demo/{i + 16}_render.png')
+    w2c_0 = torch.tensor([
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+    ], dtype=torch.float32)
 
-    current_directory = os.path.dirname(os.path.abspath(__file__))
-    image_folder = current_directory + '/rotate_demo'
-    video_name = current_directory + '/rotate_demo/output_video.mp4'
-    create_video_from_images(image_folder,video_name)
+    for img_name in os.listdir(input_folder):
+        img_path = os.path.join(input_folder, img_name)
+        if not img_path.lower().endswith(('.png', '.jpg', '.jpeg')):  # Skip non-image files
+            continue
 
-    reconstructor.save_ply(image_folder)
+        reconstructor = Flash3DReconstructor()
+        reconstructor.w2c.append(w2c_0)
+
+        # Render each image at specified angles
+        for angle in angles:
+            w2c = reconstructor.get_SE3_rotation_y(angle)
+            reconstructor.w2c.append(w2c)
+            angle_folder = os.path.join(output_folder, f"{angle}")
+            os.makedirs(angle_folder, exist_ok=True)
+
+        for i in range(len(reconstructor.w2c)):
+            print('Processing image', i)
+            reconstructor.run(img_path=img_path)
+
+        reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
+
+        for i, angle in enumerate(angles):
+            temp_w2c = reconstructor.get_SE3_rotation_y(angle)
+
+            im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
+            im = im[:, 32:352, 32:608]
+
+            output_img_path = os.path.join(output_folder, f"{angle}",
+                                           f"{os.path.splitext(img_name)[0]}_{angle}.png")
+            reconstructor.renderer.save_image(im, output_img_path)
+
+            print(f"Processed image '{img_name}' at angle {angle}, saved to '{output_img_path}'")
+        # break
+        del(reconstructor)
+    print("All images processed with specified angles.")
+    '''
+    # current_directory = os.path.dirname(os.path.abspath(__file__))
+    # image_folder = current_directory + '/rotate_demo'
+    # video_name = current_directory + '/rotate_demo/output_video.mp4'
+    # create_video_from_images(image_folder, video_name)
+    #
+    # reconstructor.save_ply(image_folder)

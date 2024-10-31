@@ -1,8 +1,7 @@
 import gradio as gr
 import os
 root_directory = os.path.dirname(os.path.abspath(__file__))
-output_path = os.path.join(root_directory, 'demo/demo.ply')
-
+output_path = os.path.join(root_directory, 'rotate_demo/demo.ply')
 
 def display_ply(ply_file):
 
