@@ -30,7 +30,7 @@ def get_VLM():
 
     return model, tokenizer
 
-def get_Inpainting_Pipeline(base_model='stable-diffusion-xl'):
+def get_Inpainting_Pipeline(base_model='stable-diffusion'):
     """
     Get the inpainting pipeline from the Hugging Face model hub.
 

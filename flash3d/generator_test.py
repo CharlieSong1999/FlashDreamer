@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 
 current_directory = os.path.dirname(os.path.abspath(__file__))
 parent_directory = os.path.abspath(os.path.join(current_directory, os.pardir))
@@ -300,9 +301,9 @@ class Flash3DReconstructor:
 
             # input of diffusion
             mask_render_path_diffusion = current_directory + f"/imgs/{self.index}_masked_rendered_original.png"
-            # self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
+            self.renderer.save_image(masked_img_diffusion, mask_render_path_diffusion)
             mask_path_diffusion = current_directory + f"/imgs/{self.index}_mask_diffusion.png"
-            # self.renderer.save_image(mask_diffusion, mask_path_diffusion)
+            self.renderer.save_image(mask_diffusion, mask_path_diffusion)
 
             self.model.to('cpu')
 
@@ -342,7 +343,36 @@ class Flash3DReconstructor:
         self.reconstruct_and_export(img, output_dir, img_path)
 
 
+def clear_cache(folder_path):
+    """
+    Clears all contents within the specified folder.
+
+    Parameters:
+    folder_path (str): The path to the folder to be cleared.
+    """
+    # Ensure the folder exists
+    if os.path.exists(folder_path):
+        # Iterate over all contents in the folder
+        for filename in os.listdir(folder_path):
+            file_path = os.path.join(folder_path, filename)
+
+            # Remove directories and files
+            if os.path.isdir(file_path):
+                shutil.rmtree(file_path)  # Remove the entire directory
+            else:
+                os.remove(file_path)  # Remove individual file
+
+        print(f"All contents in '{folder_path}' have been cleared.")
+    else:
+        print(f"The folder '{folder_path}' does not exist.")
+
 if __name__ == "__main__":
+
+    # clear cache
+    clear_cache('./imgs')
+    clear_cache('./output')
+
+    '''
     # img_path = os.path.join(current_directory, './input/subset/frame001747.jpg')
     # img_path = os.path.join(current_directory, './input/selected/8a_gameroom2.jpg')
     img_path = os.path.join(current_directory, './input/0_4.jpg')
@@ -368,7 +398,7 @@ if __name__ == "__main__":
     # 添加视角，w2c_0为初始视角
     reconstructor.w2c.append(w2c_0)
 
-    angles = [5,-5]
+    angles = [-10, 10]
     for angle in angles:
         # reconstructor.w2c.append(w2c_back)
         w2c = reconstructor.get_SE3_rotation_y(angle)
@@ -383,20 +413,20 @@ if __name__ == "__main__":
     reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
 
     # Render
-    # angles = list(range(-5 * 10, 5 * 10, 5))
+    angles = [-10, 10]
     for i, angle in enumerate(angles):
         temp_w2c = reconstructor.get_SE3_rotation_y(angle)
 
         im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
         im = im[:, 32:352, 32:608]
         reconstructor.renderer.save_image(im, current_directory + f'/output/{angle}_render.png')
-
     '''
+
     # Process each image in the folder
     input_folder = './input'
     output_folder = './output'
-    #angles_list = [[-20, 20], [-10, 10], [-30, 30]]
-    angles = [-10,10]#[-20, 20],[-10,10],[-30,30]
+    angles_list = [[-20, 20], [-10, 10], [-30, 30]]
+    #angles = [-10,10]#[-20, 20],[-10,10],[-30,30]
 
     w2c_0 = torch.tensor([
         [1.0, 0.0, 0.0, 0.0],
@@ -405,42 +435,44 @@ if __name__ == "__main__":
         [0.0, 0.0, 0.0, 1.0]
     ], dtype=torch.float32)
 
-    for img_name in os.listdir(input_folder):
-        img_path = os.path.join(input_folder, img_name)
-        if not img_path.lower().endswith(('.png', '.jpg', '.jpeg')):  # Skip non-image files
-            continue
+    for angles in angles_list:
+        for img_name in os.listdir(input_folder):
+            clear_cache('./imgs') # Start with each image without
+            img_path = os.path.join(input_folder, img_name)
+            if not img_path.lower().endswith(('.png', '.jpg', '.jpeg')):  # Skip non-image files
+                continue
 
-        reconstructor = Flash3DReconstructor()
-        reconstructor.w2c.append(w2c_0)
+            reconstructor = Flash3DReconstructor()
+            reconstructor.w2c.append(w2c_0)
 
-        # Render each image at specified angles
-        for angle in angles:
-            w2c = reconstructor.get_SE3_rotation_y(angle)
-            reconstructor.w2c.append(w2c)
-            angle_folder = os.path.join(output_folder, f"{angle}")
-            os.makedirs(angle_folder, exist_ok=True)
+            # Render each image at specified angles
+            for angle in angles:
+                w2c = reconstructor.get_SE3_rotation_y(angle)
+                reconstructor.w2c.append(w2c)
+                angle_folder = os.path.join(output_folder, f"{angle}")
+                os.makedirs(angle_folder, exist_ok=True)
 
-        for i in range(len(reconstructor.w2c)):
-            print('Processing image', i)
-            reconstructor.run(img_path=img_path)
+            for i in range(len(reconstructor.w2c)):
+                print('Processing image', i)
+                reconstructor.run(img_path=img_path)
 
-        reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
+            reconstructor.map_param_1 = reconstructor.optimize_map(reconstructor.map_param_1)
 
-        for i, angle in enumerate(angles):
-            temp_w2c = reconstructor.get_SE3_rotation_y(angle)
+            for i, angle in enumerate(angles):
+                temp_w2c = reconstructor.get_SE3_rotation_y(angle)
 
-            im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
-            im = im[:, 32:352, 32:608]
+                im, radius = reconstructor.renderer.render(reconstructor.map_param_1, temp_w2c)
+                im = im[:, 32:352, 32:608]
 
-            output_img_path = os.path.join(output_folder, f"{angle}",
-                                           f"{os.path.splitext(img_name)[0]}_{angle}.png")
-            reconstructor.renderer.save_image(im, output_img_path)
+                output_img_path = os.path.join(output_folder, f"{angle}",
+                                               f"{os.path.splitext(img_name)[0]}_{angle}.png")
+                reconstructor.renderer.save_image(im, output_img_path)
 
-            print(f"Processed image '{img_name}' at angle {angle}, saved to '{output_img_path}'")
-        # break
-        del(reconstructor)
+                print(f"Processed image '{img_name}' at angle {angle}, saved to '{output_img_path}'")
+            # break
+            del(reconstructor)
     print("All images processed with specified angles.")
-    '''
+
     # current_directory = os.path.dirname(os.path.abspath(__file__))
     # image_folder = current_directory + '/rotate_demo'
     # video_name = current_directory + '/rotate_demo/output_video.mp4'
