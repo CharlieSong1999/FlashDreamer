@@ -1,12 +1,43 @@
-# Quick Start
+# FlashDreamer
 
-`python vlm-diffusion-pipeline.py`
+![image-20241101000811442](https://gitee.com/zhu-liyun2000/typora_imgs/raw/master/img/202411010008551.png)
 
-# Environment
+This is a implementation of our project **"Enhancing Monocular 3D Scene Completion with Diffusion Model"** (ANU COMP 8536 project). We provide the implementation for reconstructing a complete 3D scene from a single image, significantly reducing the need for multi-view inputs.
 
-requirements.txt
+Our approach leverages a vision-language model to generate descriptive prompts for the scene, guiding a diffusion model to produce images from various perspectives, which are then fused to form a cohesive 3D reconstruction.
 
-# Main idea
+
+
+## Installation
+
+Please refer to **requirements.txt** for detailed environment setup requirements.
+
+For further information on the Vision Language Model (VLM) and Diffusion model used in this project, please visit the websites for [llama-3.1-8B-vision-378](https://huggingface.co/qresearch/llama-3.1-8B-vision-378) and [Stable-Diffusion-v2](https://huggingface.co/stabilityai/stable-diffusion-2-inpainting).
+
+
+
+## Quick Start
+
+```python
+python3 test_prompt.py --output_path './output_imgs' \
+        --intial_img_path './flash3d/frame000652.jpg' \
+        --prompt_question 'Please describe the scene shortly.' \
+        --rotate_angle_list '-30, -20, -10, 0, 10, 20, 30' \
+				--base_model 'stable-diffusion-xl' \
+        --optimize_num_iters 500 
+```
+
+
+
+## Acknowledgement
+
+This codebase is built on top of [Flash3D](https://github.com/eldar/flash3d), and we thank the authors for their work.
+
+
+
+## Development Updates
+
+### First commit
 
 The current pipeline consists of (1) generating text prompts using Llama 3.1 and (2) completing images based on a given image, a mask image, and the prompt.
 
@@ -15,11 +46,12 @@ You can bypass the Llama-generated prompts by setting the --prompt_diffusion inp
 > Example prompt in the screenshot: The image is a photo taken from a first-person perspective, showing a person walking into a room. The room appears to be a modern office space with a large window and a white couch.
 
 TODO(issues):
+
 1. The prompts generated directly by Llama 3.1 are not very satisfactory; you can try adjusting them yourself.
 2. Mask images still need to be generated manually; the current pipeline only supports directly reading mask files (using the --mask_path input parameter).
 3. Currently, the Hugging Face inpaint pipeline seems to only support 512x512 images; inputting other sizes may result in incorrect output image sizes. Therefore, images need to be manually resized; the images in the imgs folder have already been resized.
 
-## 20240930 update
+### 20240930 update
 
 - Added support for Llama 3.2; you need to specify the --vlm_model field.
 - Added Stable Diffusion XL and Stable Diffusion V2; you need to specify the --base_model field.
@@ -27,7 +59,7 @@ TODO(issues):
 - `flash3d_mask_resize_diffuse.bat` is a Windows batch file that automates the entire pipeline (though on my machine, the last line always fails to find a file, likely due to a Windows path issue) as a reference.
 
 
-## 20241020 update
+### 20241020 update
 
 - developed by liyun
 - Added test_prompt.py for easier handling of related variables as fields.
@@ -35,7 +67,7 @@ TODO(issues):
 
 TODO: 1. Code for multiple for-loops is not yet developed.
 
-## 20241021 update
+### 20241021 update
 
 - by changlin
 - For-loops are now implemented. You need to specify either rotate_angle_list or backward_distance_list, but not both at the same time. (For negative lists, use spaces, e.g., " -10 -20 -30")
