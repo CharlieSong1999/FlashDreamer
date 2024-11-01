@@ -1,6 +1,6 @@
 # FlashDreamer
 
-![image-20241101000811442](https://gitee.com/zhu-liyun2000/typora_imgs/raw/master/img/202411010008551.png)
+![image-20241101173410244](https://gitee.com/zhu-liyun2000/typora_imgs/raw/master/img/202411011734525.png)
 
 This is a implementation of our project **"Enhancing Monocular 3D Scene Completion with Diffusion Model"** (ANU COMP 8536 project). We provide the implementation for reconstructing a complete 3D scene from a single image, significantly reducing the need for multi-view inputs.
 
@@ -23,7 +23,7 @@ python3 test_prompt.py --output_path './output_imgs' \
         --intial_img_path './flash3d/frame000652.jpg' \
         --prompt_question 'Please describe the scene shortly.' \
         --rotate_angle_list '-30, -20, -10, 0, 10, 20, 30' \
-				--base_model 'stable-diffusion-xl' \
+        --base_model 'stable-diffusion-xl' \
         --optimize_num_iters 500 
 ```
 
