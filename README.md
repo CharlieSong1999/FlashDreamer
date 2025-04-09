@@ -1,5 +1,7 @@
 # FlashDreamer
 
+[![arXiv](https://img.shields.io/badge/arXiv-2503.00726-b31b1b.svg)](https://arxiv.org/abs/2503.00726)  
+
 <img src="https://gitee.com/zhu-liyun2000/typora_imgs/raw/master/img/202411022105129.png" alt="image-20241102210536880" style="zoom: 50%;" />
 
 This is a implementation of our project **"Enhancing Monocular 3D Scene Completion with Diffusion Model"** (ANU COMP 8536 project). We provide the implementation for reconstructing a complete 3D scene from a single image, significantly reducing the need for multi-view inputs.
